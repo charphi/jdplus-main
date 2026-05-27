@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Synthetic Series Studio · JDemetra+ v3</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f1117; --surface: #1a1d27; --border: #2a2d3a;
+      --accent: #4f8ef7; --hi: #f97316; --lo: #22d3a5; --info: #8b5cf6;
+      --text: #e2e6f0; --muted: #8892aa; --radius: 10px;
+    }
+    body { font-family: system-ui,-apple-system,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; display:flex; flex-direction:column; }
+
+    header { background:var(--surface); border-bottom:1px solid var(--border); padding:14px 32px; display:flex; align-items:center; gap:14px; }
+    header .brand { font-size:1.1rem; font-weight:700; } header .brand span { color:var(--accent); }
+    header .badge { margin-left:auto; font-size:.72rem; background:#22d3a520; color:var(--lo); border:1px solid #22d3a540; border-radius:20px; padding:3px 10px; }
+
+    .hero { padding:36px 32px 20px; max-width:1060px; width:100%; margin:0 auto; }
+    .hero h1 { font-size:1.75rem; font-weight:800; } .hero h1 span { color:var(--accent); }
+    .hero p { margin-top:8px; color:var(--muted); line-height:1.6; font-size:.95rem; }
+
+    main { flex:1; max-width:1060px; width:100%; margin:0 auto; padding:0 32px 48px; display:flex; flex-direction:column; gap:20px; }
+
+    .panel { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:20px 24px; }
+    .panel-title { font-size:.72rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:14px; }
+
+    /* ── Sliders ── */
+    .sliders-grid { display:grid; grid-template-columns:repeat(3,1fr); gap:24px; }
+    @media(max-width:700px) { .sliders-grid { grid-template-columns:1fr; } }
+
+    .slider-group { display:flex; flex-direction:column; gap:8px; }
+    .slider-group label { font-size:.85rem; color:var(--muted); display:flex; justify-content:space-between; }
+    .slider-group label strong { color:var(--text); font-variant-numeric:tabular-nums; }
+    input[type=range] { width:100%; accent-color:var(--accent); cursor:pointer; }
+
+    .run-btn { display:flex; align-items:center; justify-content:center; gap:8px; width:100%; padding:11px; background:var(--accent); color:#fff; font-size:.95rem; font-weight:600; border:none; border-radius:8px; cursor:pointer; transition:background .15s; margin-top:16px; }
+    .run-btn:hover { background:#3a7ae0; }
+    .run-btn:disabled { background:#2a3a5a; color:var(--muted); cursor:not-allowed; }
+
+    /* ── 3-panel layout ── */
+    .three-panels { display:grid; grid-template-columns:1fr 1fr 1fr; gap:20px; }
+    @media(max-width:900px) { .three-panels { grid-template-columns:1fr; } }
+    .chart-wrapper { position:relative; height:220px; }
+
+    /* ── Stats box ── */
+    .stats-grid { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+    @media(max-width:640px) { .stats-grid { grid-template-columns:1fr 1fr; } }
+    .stat-card { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:12px 14px; }
+    .stat-card .stat-label { font-size:.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
+    .stat-card .stat-val { font-size:1.15rem; font-weight:700; margin-top:2px; font-variant-numeric:tabular-nums; }
+
+    .error-banner { display:none; background:#3f1515; border:1px solid #7f2020; border-radius:8px; padding:12px 16px; font-size:.88rem; color:#f87171; }
+    .error-banner.visible { display:block; }
+
+    .hint { font-size:.82rem; color:var(--muted); margin-top:10px; line-height:1.55; }
+    .hint code { background:var(--bg); color:var(--lo); padding:1px 5px; border-radius:3px; font-size:.88em; }
+
+    footer { text-align:center; padding:16px; font-size:.75rem; color:var(--muted); border-top:1px solid var(--border); }
+    footer a { color:var(--accent); text-decoration:none; }
+    footer a:hover { text-decoration:underline; }
+  </style>
+</head>
+<body>
+
+<header>
+  <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+    <rect width="28" height="28" rx="7" fill="#22d3a520"/>
+    <path d="M4 14 Q8 4 14 14 Q20 24 24 14" stroke="#22d3a5" stroke-width="2" fill="none" stroke-linecap="round"/>
+    <circle cx="14" cy="14" r="2.5" fill="#22d3a5"/>
+  </svg>
+  <div><div class="brand"><span>JDemetra+</span> v3 · Web Service</div></div>
+  <div class="badge">Synthetic Series Studio</div>
+</header>
+
+<div class="hero">
+  <h1>Series <span>Composition Studio</span></h1>
+  <p>
+    Build a synthetic series by mixing <strong>trend</strong>, <strong>cycle</strong> and <strong>noise</strong>
+    with the three sliders, then send it to the API all at once:
+    <code>POST /hello/statistics</code>, <code>/hello/normalize</code> and <code>/hello/hodrickPrescott</code>
+    in parallel. See how each operation responds to your composition choices.
+  </p>
+</div>
+
+<main>
+
+  <!-- Controls -->
+  <div class="panel">
+    <div class="panel-title">Series composition</div>
+    <div class="sliders-grid">
+
+      <div class="slider-group">
+        <label>Trend slope (% / period) <strong id="v-trend">+0.50%</strong></label>
+        <input type="range" id="sl-trend" min="-1" max="2" step="0.05" value="0.5">
+        <div class="hint">Controls upward or downward long-run drift.<br>Try negative for a declining series.</div>
+      </div>
+
+      <div class="slider-group">
+        <label>Cycle amplitude <strong id="v-cycle">5.0</strong></label>
+        <input type="range" id="sl-cycle" min="0" max="20" step="0.5" value="5">
+        <div class="hint">Adds a smooth <code>sin</code> wave with an 8-year period.<br>Set to 0 to remove it.</div>
+      </div>
+
+      <div class="slider-group">
+        <label>Noise level (σ) <strong id="v-noise">1.5</strong></label>
+        <input type="range" id="sl-noise" min="0" max="15" step="0.5" value="1.5">
+        <div class="hint">White noise added on top.<br>High values make it hard for the HP filter.</div>
+      </div>
+
+    </div>
+    <button class="run-btn" id="run-btn">
+      <svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M4 2.5l9 5.5-9 5.5V2.5z" fill="currentColor"/></svg>
+      Run all operations
+    </button>
+  </div>
+
+  <div class="error-banner" id="error-banner"></div>
+
+  <!-- Three result panels -->
+  <div class="three-panels">
+
+    <div class="panel">
+      <div class="panel-title" style="color:var(--accent)">HP Filter decomposition</div>
+      <div class="chart-wrapper"><canvas id="chart-hp"></canvas></div>
+      <div class="hint" style="margin-top:8px">Blue = original · Orange = trend (HP) · Teal = noise (right axis)</div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title" style="color:var(--lo)">Normalized (z-score)</div>
+      <div class="chart-wrapper"><canvas id="chart-norm"></canvas></div>
+      <div class="hint" style="margin-top:8px">Mean shifted to 0, divided by σ. Shape is identical to the original.</div>
+    </div>
+
+    <div class="panel">
+      <div class="panel-title" style="color:var(--hi)">Descriptive statistics</div>
+      <div class="stats-grid" style="margin-top:8px">
+        <div class="stat-card"><div class="stat-label">n</div><div class="stat-val" id="st-n">—</div></div>
+        <div class="stat-card"><div class="stat-label">Mean</div><div class="stat-val" id="st-mean">—</div></div>
+        <div class="stat-card"><div class="stat-label">Stdev</div><div class="stat-val" id="st-stdev">—</div></div>
+        <div class="stat-card"><div class="stat-label">Min</div><div class="stat-val" id="st-min">—</div></div>
+        <div class="stat-card"><div class="stat-label">Q25</div><div class="stat-val" id="st-q25">—</div></div>
+        <div class="stat-card"><div class="stat-label">Median</div><div class="stat-val" id="st-q50">—</div></div>
+        <div class="stat-card"><div class="stat-label">Q75</div><div class="stat-val" id="st-q75">—</div></div>
+        <div class="stat-card"><div class="stat-label">Max</div><div class="stat-val" id="st-max">—</div></div>
+      </div>
+      <div class="hint" style="margin-top:12px">From <code>POST /hello/statistics</code></div>
+    </div>
+
+  </div>
+
+</main>
+
+<footer>
+  Powered by <a href="https://github.com/jdemetra/jdplus-main" target="_blank">JDemetra+ v3</a>
+  · <a href="hodrick-prescott.html">HP Filter</a>
+  · <a href="compare.html">Growth Rates</a>
+  · <a href="aggregate.html">Aggregation</a>
+  · <a href="q/swagger-ui" target="_blank">Swagger UI</a>
+</footer>
+
+<script>
+  // ── Seeded PRNG ──────────────────────────────────────────────────────────────
+  function lcg(seed) {
+    let s = seed >>> 0;
+    return () => { s = Math.imul(1664525,s)+1013904223>>>0; return s/0x100000000; };
+  }
+
+  // ── Generate series from sliders ────────────────────────────────────────────
+  function buildSeries(trendPct, cycleAmp, noiseLvl) {
+    const rand  = lcg(0xABCDE123);
+    const n     = 80; // 20 years quarterly
+    const vals  = [];
+    let base = 100;
+    for (let t = 0; t < n; t++) {
+      const trend = base * (1 + trendPct / 100);
+      const cycle = cycleAmp * Math.sin(2 * Math.PI * t / 32);
+      const noise = noiseLvl * (rand() - 0.5) * 2;
+      vals.push(+(trend + cycle + noise).toFixed(3));
+      base = trend;
+    }
+    return { start: { frequency: 'FREQ_QUARTERLY', year: 2000, pos: 0 }, values: vals };
+  }
+
+  // ── Label generator ─────────────────────────────────────────────────────────
+  function makeLabels(n) {
+    return Array.from({ length: n }, (_, i) => `${2000 + Math.floor(i/4)} Q${i%4+1}`);
+  }
+
+  // ── Charts ──────────────────────────────────────────────────────────────────
+  const COMMON_OPTS = {
+    responsive: true, maintainAspectRatio: false,
+    plugins: { legend: { display: false }, tooltip: {
+      backgroundColor: '#1a1d27', borderColor: '#2a2d3a', borderWidth: 1,
+      titleColor: '#e2e6f0', bodyColor: '#8892aa',
+      callbacks: { label: c => ` ${c.dataset.label}: ${(+c.parsed.y).toFixed(3)}` }
+    }},
+    scales: {
+      x: { ticks: { color: '#8892aa', maxTicksLimit: 8, maxRotation: 0 }, grid: { color: '#2a2d3a' } },
+      y: { ticks: { color: '#8892aa' }, grid: { color: '#2a2d3a' } }
+    }
+  };
+
+  const chartHP = new Chart(document.getElementById('chart-hp'), {
+    data: {
+      labels: [],
+      datasets: [
+        { type:'line', label:'Original', data:[], borderColor:'#4f8ef7', borderWidth:1.5, pointRadius:0, tension:0.3, yAxisID:'y' },
+        { type:'line', label:'Trend (HP)', data:[], borderColor:'#f97316', borderWidth:2.5, pointRadius:0, tension:0.3, yAxisID:'y' },
+        { type:'line', label:'Noise', data:[], borderColor:'#22d3a5', borderWidth:1.2, pointRadius:0, tension:0.3, yAxisID:'y2',
+          borderDash:[4,3], fill:{ target:'origin', above:'#22d3a512', below:'#22d3a512' } }
+      ]
+    },
+    options: { ...COMMON_OPTS,
+      scales: {
+        x: { ticks:{ color:'#8892aa', maxTicksLimit:8, maxRotation:0 }, grid:{ color:'#2a2d3a' } },
+        y:  { type:'linear', position:'left',  ticks:{ color:'#8892aa' }, grid:{ color:'#2a2d3a' } },
+        y2: { type:'linear', position:'right', ticks:{ color:'#22d3a5' }, grid:{ drawOnChartArea:false } }
+      }
+    }
+  });
+
+  const chartNorm = new Chart(document.getElementById('chart-norm'), {
+    type: 'line',
+    data: { labels: [], datasets: [
+      { label:'Original', data:[], borderColor:'#4f8ef780', borderWidth:1, pointRadius:0, tension:0.3 },
+      { label:'Normalized', data:[], borderColor:'#22d3a5', borderWidth:2, pointRadius:0, tension:0.3 }
+    ]},
+    options: { ...COMMON_OPTS,
+      scales: {
+        x: { ticks:{ color:'#8892aa', maxTicksLimit:8, maxRotation:0 }, grid:{ color:'#2a2d3a' } },
+        y: { ticks:{ color:'#8892aa' }, grid:{ color:'#2a2d3a' } }
+      }
+    }
+  });
+
+  // ── Slider display ───────────────────────────────────────────────────────────
+  const slTrend = document.getElementById('sl-trend');
+  const slCycle = document.getElementById('sl-cycle');
+  const slNoise = document.getElementById('sl-noise');
+
+  function syncLabels() {
+    const t = +slTrend.value;
+    document.getElementById('v-trend').textContent = (t >= 0 ? '+' : '') + t.toFixed(2) + '%';
+    document.getElementById('v-cycle').textContent = (+slCycle.value).toFixed(1);
+    document.getElementById('v-noise').textContent = (+slNoise.value).toFixed(1);
+  }
+  slTrend.addEventListener('input', syncLabels);
+  slCycle.addEventListener('input', syncLabels);
+  slNoise.addEventListener('input', syncLabels);
+
+  // ── Main run ─────────────────────────────────────────────────────────────────
+  let debounceTimer;
+  function scheduleRun() { clearTimeout(debounceTimer); debounceTimer = setTimeout(run, 400); }
+  slTrend.addEventListener('input', scheduleRun);
+  slCycle.addEventListener('input', scheduleRun);
+  slNoise.addEventListener('input', scheduleRun);
+
+  async function run() {
+    const errorBanner = document.getElementById('error-banner');
+    const runBtn = document.getElementById('run-btn');
+    errorBanner.classList.remove('visible');
+    runBtn.disabled = true; runBtn.textContent = 'Running…';
+
+    const series = buildSeries(+slTrend.value, +slCycle.value, +slNoise.value);
+    const labels = makeLabels(series.values.length);
+    const lambda = 1600; // standard quarterly
+
+    try {
+      const [rHP, rNorm, rStats] = await Promise.all([
+        fetch('/hello/hodrickPrescott', { method:'POST', headers:{ 'Content-Type':'application/json' },
+          body: JSON.stringify({ id:'compose', series, lambda }) }),
+        fetch('/hello/normalize', { method:'POST', headers:{ 'Content-Type':'application/json' },
+          body: JSON.stringify({ id:'compose', series }) }),
+        fetch('/hello/statistics', { method:'POST', headers:{ 'Content-Type':'application/json' },
+          body: JSON.stringify({ id:'compose', series }) })
+      ]);
+      if (!rHP.ok || !rNorm.ok || !rStats.ok) throw new Error('API error');
+
+      const dHP    = await rHP.json();
+      const dNorm  = await rNorm.json();
+      const dStats = await rStats.json();
+
+      // HP chart
+      chartHP.data.labels = labels;
+      chartHP.data.datasets[0].data = series.values;
+      chartHP.data.datasets[1].data = dHP.trend.values;
+      chartHP.data.datasets[2].data = dHP.noise.values;
+      chartHP.update('active');
+
+      // Norm chart – show both to make scale contrast visible
+      chartNorm.data.labels = labels;
+      chartNorm.data.datasets[0].data = series.values;
+      chartNorm.data.datasets[1].data = dNorm.series.values;
+      chartNorm.update('active');
+
+      // Stats panel
+      const fmt = (v, d=2) => v == null ? '—' : (+v).toFixed(d);
+      document.getElementById('st-n').textContent     = dStats.n ?? '—';
+      document.getElementById('st-mean').textContent  = fmt(dStats.average);
+      document.getElementById('st-stdev').textContent = fmt(dStats.stdev);
+      document.getElementById('st-min').textContent   = fmt(dStats.min);
+      document.getElementById('st-max').textContent   = fmt(dStats.max);
+      document.getElementById('st-q25').textContent   = fmt(dStats.q25);
+      document.getElementById('st-q50').textContent   = fmt(dStats.q50);
+      document.getElementById('st-q75').textContent   = fmt(dStats.q75);
+
+    } catch(err) {
+      errorBanner.textContent = `⚠ ${err.message}`;
+      errorBanner.classList.add('visible');
+    } finally {
+      runBtn.disabled = false;
+      runBtn.innerHTML = '<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M4 2.5l9 5.5-9 5.5V2.5z" fill="currentColor"/></svg> Run all operations';
+    }
+  }
+
+  document.getElementById('run-btn').addEventListener('click', run);
+  syncLabels();
+  window.addEventListener('load', run);
+</script>
+</body>
+</html>
+

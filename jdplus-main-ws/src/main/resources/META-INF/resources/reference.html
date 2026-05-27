@@ -1,0 +1,378 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>API Reference · JDemetra+ v3</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f1117; --surface: #1a1d27; --border: #2a2d3a;
+      --accent: #4f8ef7; --hi: #f97316; --lo: #22d3a5; --info: #8b5cf6;
+      --text: #e2e6f0; --muted: #8892aa; --radius: 10px;
+      --green: #a8d8a8; --yellow: #fde68a; --blue: #93c5fd; --pink: #f9a8d4;
+    }
+    body { font-family: system-ui,-apple-system,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; display:flex; flex-direction:column; }
+
+    header { background:var(--surface); border-bottom:1px solid var(--border); padding:14px 32px; display:flex; align-items:center; gap:14px; }
+    header .brand { font-size:1.1rem; font-weight:700; } header .brand span { color:var(--accent); }
+    header .badge { margin-left:auto; font-size:.72rem; background:#4f8ef720; color:var(--accent); border:1px solid #4f8ef740; border-radius:20px; padding:3px 10px; }
+
+    .hero { padding:36px 32px 20px; max-width:1100px; width:100%; margin:0 auto; }
+    .hero h1 { font-size:1.75rem; font-weight:800; } .hero h1 span { color:var(--accent); }
+    .hero p { margin-top:8px; color:var(--muted); line-height:1.6; font-size:.95rem; }
+
+    main { flex:1; max-width:1100px; width:100%; margin:0 auto; padding:0 32px 48px; display:flex; flex-direction:column; gap:20px; }
+
+    /* ── Endpoint card ── */
+    .ep-card { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); overflow:hidden; }
+    .ep-header { display:flex; align-items:center; gap:14px; padding:16px 20px; border-bottom:1px solid var(--border); }
+    .ep-method { font-size:.75rem; font-weight:700; background:#22d3a520; color:var(--lo); border:1px solid #22d3a540; border-radius:4px; padding:3px 8px; letter-spacing:.05em; flex-shrink:0; }
+    .ep-path { font-family:'Cascadia Code','JetBrains Mono',monospace; font-size:.95rem; color:var(--accent); font-weight:600; }
+    .ep-desc { color:var(--muted); font-size:.85rem; margin-left:auto; text-align:right; }
+
+    .ep-body { display:grid; grid-template-columns:1fr 1fr; gap:0; }
+    @media(max-width:760px) { .ep-body { grid-template-columns:1fr; } }
+
+    .ep-col { padding:16px 20px; }
+    .ep-col + .ep-col { border-left:1px solid var(--border); }
+    .ep-col-title { font-size:.68rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:10px; }
+
+    textarea.json-input {
+      width:100%; background:var(--bg); border:1px solid var(--border); border-radius:6px;
+      color:var(--green); padding:12px; font-size:.8rem; font-family:'Cascadia Code','JetBrains Mono',monospace;
+      resize:vertical; min-height:130px; line-height:1.5;
+    }
+    textarea.json-input:focus { outline:2px solid var(--accent); border-color:transparent; }
+
+    .try-btn { display:inline-flex; align-items:center; gap:6px; margin-top:10px; padding:7px 14px; background:var(--accent); color:#fff; font-size:.82rem; font-weight:600; border:none; border-radius:6px; cursor:pointer; transition:background .15s; }
+    .try-btn:hover { background:#3a7ae0; }
+    .try-btn:disabled { background:#2a3a5a; color:var(--muted); cursor:not-allowed; }
+
+    .reset-btn { display:inline-flex; align-items:center; gap:6px; margin-top:10px; margin-left:8px; padding:7px 14px; background:transparent; color:var(--muted); font-size:.82rem; font-weight:600; border:1px solid var(--border); border-radius:6px; cursor:pointer; transition:all .15s; }
+    .reset-btn:hover { background:var(--border); color:var(--text); }
+
+    .json-output { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:12px; font-size:.8rem; font-family:'Cascadia Code','JetBrains Mono',monospace; white-space:pre; overflow-x:auto; min-height:130px; line-height:1.5; color:var(--blue); }
+    .json-output.empty { color:var(--muted); font-style:italic; }
+    .json-output.error { color:#f87171; }
+
+    /* JSON syntax highlight */
+    .json-output .k { color:var(--pink); }
+    .json-output .s { color:var(--green); }
+    .json-output .n { color:var(--yellow); }
+    .json-output .b { color:var(--accent); }
+
+    .param-tags { display:flex; flex-wrap:wrap; gap:6px; margin-bottom:12px; }
+    .param-tag { font-size:.72rem; padding:3px 8px; border-radius:4px; background:var(--bg); border:1px solid var(--border); color:var(--muted); }
+    .param-tag strong { color:var(--text); }
+
+    footer { text-align:center; padding:16px; font-size:.75rem; color:var(--muted); border-top:1px solid var(--border); }
+    footer a { color:var(--accent); text-decoration:none; }
+    footer a:hover { text-decoration:underline; }
+  </style>
+</head>
+<body>
+
+<header>
+  <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+    <rect width="28" height="28" rx="7" fill="#4f8ef720"/>
+    <rect x="5" y="8"  width="18" height="2" rx="1" fill="#4f8ef7"/>
+    <rect x="5" y="13" width="12" height="2" rx="1" fill="#4f8ef7" opacity=".7"/>
+    <rect x="5" y="18" width="8"  height="2" rx="1" fill="#4f8ef7" opacity=".4"/>
+  </svg>
+  <div><div class="brand"><span>JDemetra+</span> v3 · Web Service</div></div>
+  <div class="badge">Live API Reference</div>
+</header>
+
+<div class="hero">
+  <h1>API <span>Cheatsheet</span></h1>
+  <p>
+    Every endpoint in one page. Edit the request JSON directly and click <strong>Try it</strong>
+    to call the live service — no Swagger required. Responses appear immediately on the right.
+    Port: <code id="port-hint">4568 (dev) / 4569 (prod)</code>.
+  </p>
+</div>
+
+<main id="main-cards">
+  <!-- Cards are rendered by JS -->
+</main>
+
+<footer>
+  Powered by <a href="https://github.com/jdemetra/jdplus-main" target="_blank">JDemetra+ v3</a>
+  · <a href="hodrick-prescott.html">HP Filter</a>
+  · <a href="tutorial.html">Tutorial</a>
+  · <a href="compare.html">Growth Rates</a>
+  · <a href="compose.html">Studio</a>
+  · <a href="q/swagger-ui" target="_blank">Full Swagger UI</a>
+</footer>
+
+<script>
+  const ENDPOINTS = [
+    {
+      path: '/hello/statistics',
+      desc: 'Descriptive statistics (n, mean, stdev, quartiles)',
+      params: [
+        { name: 'id', type: 'string', note: 'Series identifier' },
+        { name: 'series', type: 'TsData', note: 'start + values[]' }
+      ],
+      defaultBody: JSON.stringify({
+        id: 'example',
+        series: {
+          start: { frequency: 'FREQ_QUARTERLY', year: 2020, pos: 0 },
+          values: [100, 102, 101, 104, 103, 107, 105, 108]
+        }
+      }, null, 2)
+    },
+    {
+      path: '/hello/normalize',
+      desc: 'Standardize: (y − mean) / stdev  →  mean=0, stdev=1',
+      params: [
+        { name: 'id', type: 'string', note: 'Series identifier' },
+        { name: 'series', type: 'TsData', note: 'start + values[]' }
+      ],
+      defaultBody: JSON.stringify({
+        id: 'example',
+        series: {
+          start: { frequency: 'FREQ_YEARLY', year: 2015, pos: 0 },
+          values: [50, 55, 60, 58, 65, 70]
+        }
+      }, null, 2)
+    },
+    {
+      path: '/hello/pct',
+      desc: 'Percentage change: (y[t] / y[t−lag] − 1) × 100',
+      params: [
+        { name: 'id', type: 'string', note: '' },
+        { name: 'series', type: 'TsData', note: '' },
+        { name: 'lag', type: 'int32', note: '1 = QoQ, 4 = YoY (quarterly)' }
+      ],
+      defaultBody: JSON.stringify({
+        id: 'gdp',
+        series: {
+          start: { frequency: 'FREQ_QUARTERLY', year: 2020, pos: 0 },
+          values: [100, 102, 101, 104, 106, 105, 108, 107]
+        },
+        lag: 1
+      }, null, 2)
+    },
+    {
+      path: '/hello/delta',
+      desc: 'Difference operator applied power times: y[t] − y[t−lag]',
+      params: [
+        { name: 'id', type: 'string', note: '' },
+        { name: 'series', type: 'TsData', note: '' },
+        { name: 'lag',   type: 'int32', note: 'period offset' },
+        { name: 'power', type: 'int32', note: '1 = first diff, 2 = second diff' }
+      ],
+      defaultBody: JSON.stringify({
+        id: 'level',
+        series: {
+          start: { frequency: 'FREQ_MONTHLY', year: 2022, pos: 0 },
+          values: [100, 103, 102, 105, 110, 108, 112, 115, 113, 117, 120, 118]
+        },
+        lag: 1,
+        power: 1
+      }, null, 2)
+    },
+    {
+      path: '/hello/aggregate',
+      desc: 'Frequency conversion: monthly → quarterly/yearly etc.',
+      params: [
+        { name: 'id', type: 'string', note: '' },
+        { name: 'series', type: 'TsData', note: 'high-frequency input' },
+        { name: 'aggregationType', type: 'enum', note: 'AGGREGATION_SUM | _AVERAGE | _FIRST | _LAST | _MAX | _MIN' },
+        { name: 'newFrequency', type: 'enum', note: 'FREQ_YEARLY | _QUARTERLY | …' },
+        { name: 'complete', type: 'bool', note: 'only complete periods' }
+      ],
+      defaultBody: JSON.stringify({
+        id: 'monthly_sales',
+        series: {
+          start: { frequency: 'FREQ_MONTHLY', year: 2022, pos: 0 },
+          values: [10,12,11, 13,14,12, 15,16,14, 17,18,16, 20,21,19, 22,23,21, 24,25,23, 26,27,25]
+        },
+        aggregationType: 'AGGREGATION_SUM',
+        newFrequency: 'FREQ_QUARTERLY',
+        complete: false
+      }, null, 2)
+    },
+    {
+      path: '/hello/hodrickPrescott',
+      desc: 'HP filter: decompose into trend + noise (λ controls smoothness)',
+      params: [
+        { name: 'id', type: 'string', note: '' },
+        { name: 'series', type: 'TsData', note: '' },
+        { name: 'lambda', type: 'int32', note: '100 yearly · 1600 quarterly · 14400 monthly' }
+      ],
+      defaultBody: JSON.stringify({
+        id: 'gdp',
+        series: {
+          start: { frequency: 'FREQ_QUARTERLY', year: 2000, pos: 0 },
+          values: [100,102,101,104,103,107,106,109,108,112,111,115,114,118,117,120]
+        },
+        lambda: 1600
+      }, null, 2)
+    },
+    {
+      path: '/hello/buildTsData',
+      desc: 'Build a regular TsData from a list of dated observations',
+      params: [
+        { name: 'id', type: 'string', note: '' },
+        { name: 'gathering.frequency', type: 'enum', note: 'target frequency (FREQ_UNDEFINED = auto-detect)' },
+        { name: 'gathering.aggregationType', type: 'enum', note: 'AGGREGATION_AVERAGE etc.' },
+        { name: 'observations[].date', type: 'Date', note: '{ year, month, day }' },
+        { name: 'observations[].value', type: 'double', note: '' }
+      ],
+      defaultBody: JSON.stringify({
+        id: 'obs_series',
+        gathering: {
+          frequency: 'FREQ_MONTHLY',
+          aggregationType: 'AGGREGATION_AVERAGE',
+          allowPartialAggregation: false,
+          includeMissingValues: false
+        },
+        observations: [
+          { date: { year: 2023, month: 1, day: 15 }, value: 101.2 },
+          { date: { year: 2023, month: 1, day: 28 }, value: 103.4 },
+          { date: { year: 2023, month: 2, day: 10 }, value: 99.8 },
+          { date: { year: 2023, month: 3, day: 5  }, value: 105.1 },
+          { date: { year: 2023, month: 4, day: 20 }, value: 107.3 }
+        ]
+      }, null, 2)
+    },
+    {
+      path: '/hello/buildTsDataTable',
+      desc: 'Align a collection of TsData series into a matrix (shared time axis)',
+      params: [
+        { name: 'id', type: 'string', note: '' },
+        { name: 'distributionType', type: 'enum', note: 'DIST_FIRST | DIST_LAST | DIST_MIDDLE' },
+        { name: 'collection[]', type: 'TsData[]', note: 'each item: { start, values[] }' }
+      ],
+      defaultBody: JSON.stringify({
+        id: 'multi',
+        distributionType: 'DIST_FIRST',
+        collection: [
+          {
+            start: { frequency: 'FREQ_QUARTERLY', year: 2020, pos: 0 },
+            values: [100, 102, 101, 104]
+          },
+          {
+            start: { frequency: 'FREQ_QUARTERLY', year: 2020, pos: 1 },
+            values: [50, 51, 53, 52]
+          },
+          {
+            start: { frequency: 'FREQ_QUARTERLY', year: 2020, pos: 0 },
+            values: [200, 198, 205, 210]
+          }
+        ]
+      }, null, 2)
+    }
+  ];
+
+  // ── Syntax highlighter ───────────────────────────────────────────────────────
+  function highlight(json) {
+    return json
+      .replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;')
+      .replace(/("(\\u[a-zA-Z0-9]{4}|\\[^u]|[^\\"])*"(?:\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d+)?(?:[eE][+-]?\d+)?)/g, m => {
+        if (/^"/.test(m)) {
+          return /:$/.test(m) ? `<span class="k">${m}</span>` : `<span class="s">${m}</span>`;
+        }
+        if (/true|false/.test(m)) return `<span class="b">${m}</span>`;
+        if (/null/.test(m))       return `<span class="b">${m}</span>`;
+        return `<span class="n">${m}</span>`;
+      });
+  }
+
+  // ── Render cards ─────────────────────────────────────────────────────────────
+  const container = document.getElementById('main-cards');
+
+  ENDPOINTS.forEach((ep, idx) => {
+    const card = document.createElement('div');
+    card.className = 'ep-card';
+
+    const paramTags = ep.params.map(p =>
+      `<span class="param-tag"><strong>${p.name}</strong>: ${p.type}${p.note ? ' — ' + p.note : ''}</span>`
+    ).join('');
+
+    card.innerHTML = `
+      <div class="ep-header">
+        <span class="ep-method">POST</span>
+        <span class="ep-path">${ep.path}</span>
+        <span class="ep-desc">${ep.desc}</span>
+      </div>
+      <div class="ep-body">
+        <div class="ep-col">
+          <div class="ep-col-title">Request body</div>
+          <div class="param-tags">${paramTags}</div>
+          <textarea class="json-input" id="req-${idx}" spellcheck="false">${ep.defaultBody}</textarea>
+          <button class="try-btn" id="try-${idx}">
+            <svg width="12" height="12" fill="none" viewBox="0 0 16 16"><path d="M4 2.5l9 5.5-9 5.5V2.5z" fill="currentColor"/></svg>
+            Try it
+          </button>
+          <button class="reset-btn" id="reset-${idx}">Reset</button>
+        </div>
+        <div class="ep-col">
+          <div class="ep-col-title">Response</div>
+          <div class="json-output empty" id="res-${idx}">Response will appear here…</div>
+        </div>
+      </div>`;
+
+    container.appendChild(card);
+
+    // Bind events
+    document.getElementById(`try-${idx}`).addEventListener('click', () => callEndpoint(ep, idx));
+    document.getElementById(`reset-${idx}`).addEventListener('click', () => {
+      document.getElementById(`req-${idx}`).value = ep.defaultBody;
+      const out = document.getElementById(`res-${idx}`);
+      out.className = 'json-output empty';
+      out.innerHTML = 'Response will appear here…';
+    });
+  });
+
+  // ── API call ─────────────────────────────────────────────────────────────────
+  async function callEndpoint(ep, idx) {
+    const tryBtn = document.getElementById(`try-${idx}`);
+    const outEl  = document.getElementById(`res-${idx}`);
+    const rawBody = document.getElementById(`req-${idx}`).value;
+
+    let parsed;
+    try { parsed = JSON.parse(rawBody); }
+    catch(e) {
+      outEl.className = 'json-output error';
+      outEl.textContent = 'Invalid JSON: ' + e.message;
+      return;
+    }
+
+    tryBtn.disabled = true; tryBtn.textContent = 'Calling…';
+    outEl.className = 'json-output';
+    outEl.textContent = '…';
+
+    try {
+      const resp = await fetch(ep.path, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(parsed)
+      });
+      const text = await resp.text();
+      let pretty;
+      try { pretty = JSON.stringify(JSON.parse(text), null, 2); }
+      catch { pretty = text; }
+
+      if (!resp.ok) {
+        outEl.className = 'json-output error';
+        outEl.textContent = `HTTP ${resp.status}\n\n${pretty}`;
+      } else {
+        outEl.className = 'json-output';
+        outEl.innerHTML = highlight(pretty);
+      }
+    } catch(err) {
+      outEl.className = 'json-output error';
+      outEl.textContent = 'Network error: ' + err.message;
+    } finally {
+      tryBtn.disabled = false;
+      tryBtn.innerHTML = '<svg width="12" height="12" fill="none" viewBox="0 0 16 16"><path d="M4 2.5l9 5.5-9 5.5V2.5z" fill="currentColor"/></svg> Try it';
+    }
+  }
+</script>
+</body>
+</html>
+

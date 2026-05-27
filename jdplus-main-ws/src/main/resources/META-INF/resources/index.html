@@ -1,0 +1,531 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>JDemetra+ v3 · Web Service Demos</title>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #0f1117;
+      --surface: #1a1d27;
+      --border:  #2a2d3a;
+      --accent:  #4f8ef7;
+      --hi:      #f97316;
+      --lo:      #22d3a5;
+      --info:    #8b5cf6;
+      --text:    #e2e6f0;
+      --muted:   #8892aa;
+      --radius:  12px;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 16px 40px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .brand { font-size: 1.15rem; font-weight: 700; }
+    .brand span { color: var(--accent); }
+    .header-links { margin-left: auto; display: flex; gap: 20px; font-size: .85rem; }
+    .header-links a { color: var(--muted); text-decoration: none; transition: color .15s; }
+    .header-links a:hover { color: var(--text); }
+
+    /* ── Hero ── */
+    .hero {
+      text-align: center;
+      padding: 64px 32px 48px;
+      max-width: 720px;
+      margin: 0 auto;
+    }
+    .hero-badge {
+      display: inline-block;
+      font-size: .72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: .12em;
+      color: var(--accent);
+      background: #4f8ef718;
+      border: 1px solid #4f8ef740;
+      border-radius: 20px;
+      padding: 4px 14px;
+      margin-bottom: 20px;
+    }
+    .hero h1 {
+      font-size: 2.4rem;
+      font-weight: 900;
+      line-height: 1.15;
+      letter-spacing: -.02em;
+    }
+    .hero h1 span { color: var(--accent); }
+    .hero p {
+      margin-top: 16px;
+      color: var(--muted);
+      font-size: 1.05rem;
+      line-height: 1.7;
+    }
+    .hero-meta {
+      margin-top: 20px;
+      display: flex;
+      gap: 16px;
+      justify-content: center;
+      flex-wrap: wrap;
+    }
+    .meta-pill {
+      display: flex;
+      align-items: center;
+      gap: 7px;
+      font-size: .8rem;
+      color: var(--muted);
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 20px;
+      padding: 5px 14px;
+    }
+    .meta-dot { width: 8px; height: 8px; border-radius: 50%; }
+
+    /* ── Section title ── */
+    .section-label {
+      font-size: .7rem;
+      font-weight: 700;
+      letter-spacing: .14em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 16px;
+      padding-bottom: 8px;
+      border-bottom: 1px solid var(--border);
+    }
+
+    /* ── Grid ── */
+    .grid-container {
+      max-width: 1080px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 0 40px 64px;
+    }
+
+    .cards-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+      gap: 16px;
+      margin-bottom: 40px;
+    }
+
+    /* ── Demo card ── */
+    .demo-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 22px 24px;
+      text-decoration: none;
+      color: inherit;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      transition: border-color .2s, transform .15s, box-shadow .2s;
+      position: relative;
+      overflow: hidden;
+    }
+    .demo-card::before {
+      content: '';
+      position: absolute;
+      top: 0; left: 0; right: 0;
+      height: 3px;
+      background: var(--card-color, var(--accent));
+      opacity: 0;
+      transition: opacity .2s;
+    }
+    .demo-card:hover {
+      border-color: var(--card-color, var(--accent));
+      transform: translateY(-2px);
+      box-shadow: 0 8px 24px rgba(0,0,0,.35);
+    }
+    .demo-card:hover::before { opacity: 1; }
+
+    .card-icon {
+      width: 40px;
+      height: 40px;
+      border-radius: 10px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 1.3rem;
+      flex-shrink: 0;
+    }
+
+    .card-header { display: flex; align-items: center; gap: 12px; }
+    .card-title { font-size: 1rem; font-weight: 700; }
+    .card-subtitle { font-size: .78rem; color: var(--muted); margin-top: 1px; }
+
+    .card-desc {
+      font-size: .855rem;
+      color: var(--muted);
+      line-height: 1.6;
+      flex: 1;
+    }
+
+    .card-footer {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 4px;
+    }
+
+    .card-tags { display: flex; gap: 6px; flex-wrap: wrap; }
+    .tag {
+      font-size: .68rem;
+      padding: 2px 8px;
+      border-radius: 4px;
+      border: 1px solid;
+      font-weight: 500;
+    }
+
+    .card-arrow {
+      color: var(--muted);
+      font-size: 1.1rem;
+      transition: color .2s, transform .2s;
+    }
+    .demo-card:hover .card-arrow {
+      color: var(--card-color, var(--accent));
+      transform: translateX(3px);
+    }
+
+    /* ── Featured card (full width) ── */
+    .featured {
+      grid-column: 1 / -1;
+      flex-direction: row;
+      align-items: center;
+      gap: 24px;
+      padding: 24px 28px;
+    }
+    .featured .card-body { flex: 1; }
+    .featured .card-desc { max-width: 560px; }
+    @media (max-width: 640px) { .featured { flex-direction: column; } }
+
+    /* ── Tools section (small cards) ── */
+    .tools-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+      gap: 12px;
+    }
+    .tool-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 14px 16px;
+      text-decoration: none;
+      color: inherit;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      font-size: .88rem;
+      font-weight: 500;
+      transition: border-color .15s, background .15s;
+    }
+    .tool-card:hover { border-color: var(--accent); background: #4f8ef708; }
+    .tool-icon { font-size: 1.1rem; flex-shrink: 0; }
+    .tool-label { flex: 1; }
+    .tool-ext { font-size: .72rem; color: var(--muted); }
+
+    /* ── Footer ── */
+    footer {
+      margin-top: auto;
+      border-top: 1px solid var(--border);
+      padding: 20px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 10px;
+      font-size: .75rem;
+      color: var(--muted);
+    }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<header>
+  <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+    <rect width="28" height="28" rx="7" fill="#4f8ef720"/>
+    <polyline points="4,22 9,14 13,17 17,8 24,6"
+      stroke="#4f8ef7" stroke-width="2"
+      stroke-linejoin="round" stroke-linecap="round" fill="none"/>
+  </svg>
+  <div class="brand"><span>JDemetra+</span> v3 · Web Service</div>
+  <nav class="header-links">
+    <a href="q/swagger-ui" target="_blank">Swagger UI</a>
+    <a href="q/dev-ui"    target="_blank">Dev UI</a>
+    <a href="https://github.com/jdemetra/jdplus-main" target="_blank">GitHub</a>
+  </nav>
+</header>
+
+<div class="hero">
+  <div class="hero-badge">Interactive demos</div>
+  <h1>Time Series Analysis<br><span>in your browser</span></h1>
+  <p>
+    Nine single-page demos that call the JDemetra+ REST API live.
+    No build step, no framework — just HTML, Chart.js and fetch.
+  </p>
+  <div class="hero-meta">
+    <span class="meta-pill"><span class="meta-dot" style="background:var(--lo)"></span>REST API</span>
+    <span class="meta-pill"><span class="meta-dot" style="background:var(--accent)"></span>8 endpoints</span>
+    <span class="meta-pill"><span class="meta-dot" style="background:var(--hi)"></span>9 demos</span>
+    <span class="meta-pill"><span class="meta-dot" style="background:var(--info)"></span>Proof of concept</span>
+  </div>
+</div>
+
+<div class="grid-container">
+
+  <!-- ── Interactive demos ── -->
+  <div class="section-label">Interactive demos</div>
+  <div class="cards-grid">
+
+    <!-- HP Filter — featured -->
+    <a class="demo-card featured" href="hodrick-prescott.html" style="--card-color:#4f8ef7">
+      <div class="card-icon" style="background:#4f8ef718; font-size:1.6rem">📈</div>
+      <div class="card-body">
+        <div class="card-header">
+          <div>
+            <div class="card-title">Hodrick–Prescott Filter</div>
+            <div class="card-subtitle">Trend &amp; noise decomposition</div>
+          </div>
+        </div>
+        <div class="card-desc">
+          Separate any series into a smooth long-run <strong>trend</strong> and a short-term
+          <strong>cycle/noise</strong> component. Drag the λ slider to control smoothness
+          and watch the decomposition update instantly.
+        </div>
+        <div class="card-footer">
+          <div class="card-tags">
+            <span class="tag" style="color:#4f8ef7;border-color:#4f8ef740;background:#4f8ef710">POST /hodrickPrescott</span>
+            <span class="tag" style="color:var(--muted);border-color:var(--border)">λ slider</span>
+            <span class="tag" style="color:var(--muted);border-color:var(--border)">Chart.js</span>
+          </div>
+          <span class="card-arrow">→</span>
+        </div>
+      </div>
+    </a>
+
+    <!-- Aggregation -->
+    <a class="demo-card" href="aggregate.html" style="--card-color:#f97316">
+      <div class="card-header">
+        <div class="card-icon" style="background:#f9731618">📊</div>
+        <div>
+          <div class="card-title">Aggregation Explorer</div>
+          <div class="card-subtitle">Frequency conversion</div>
+        </div>
+      </div>
+      <div class="card-desc">
+        Convert monthly data to quarterly or yearly using six methods —
+        sum, average, first, last, min, max. See the original and
+        aggregated series overlaid on the same chart.
+      </div>
+      <div class="card-footer">
+        <div class="card-tags">
+          <span class="tag" style="color:#f97316;border-color:#f9731640;background:#f9731610">POST /aggregate</span>
+        </div>
+        <span class="card-arrow">→</span>
+      </div>
+    </a>
+
+    <!-- Growth Rates -->
+    <a class="demo-card" href="compare.html" style="--card-color:#8b5cf6">
+      <div class="card-header">
+        <div class="card-icon" style="background:#8b5cf618">📉</div>
+        <div>
+          <div class="card-title">Growth Rate Analyzer</div>
+          <div class="card-subtitle">QoQ vs YoY comparison</div>
+        </div>
+      </div>
+      <div class="card-desc">
+        Side-by-side quarter-on-quarter (lag&nbsp;1) and year-on-year
+        (lag&nbsp;4) percentage changes. Periods where both turn
+        negative are highlighted as recession signals.
+      </div>
+      <div class="card-footer">
+        <div class="card-tags">
+          <span class="tag" style="color:#8b5cf6;border-color:#8b5cf640;background:#8b5cf610">POST /pct ×2</span>
+        </div>
+        <span class="card-arrow">→</span>
+      </div>
+    </a>
+
+    <!-- Compose -->
+    <a class="demo-card" href="compose.html" style="--card-color:#22d3a5">
+      <div class="card-header">
+        <div class="card-icon" style="background:#22d3a518">🎛️</div>
+        <div>
+          <div class="card-title">Synthetic Series Studio</div>
+          <div class="card-subtitle">Build &amp; analyse in one click</div>
+        </div>
+      </div>
+      <div class="card-desc">
+        Three sliders control <strong>trend slope</strong>, <strong>cycle amplitude</strong>
+        and <strong>noise level</strong>. Hit run and all three operations
+        (HP filter, normalize, statistics) fire simultaneously.
+      </div>
+      <div class="card-footer">
+        <div class="card-tags">
+          <span class="tag" style="color:#22d3a5;border-color:#22d3a540;background:#22d3a510">3 endpoints in parallel</span>
+        </div>
+        <span class="card-arrow">→</span>
+      </div>
+    </a>
+
+    <!-- Dashboard -->
+    <a class="demo-card" href="dashboard.html" style="--card-color:#4f8ef7">
+      <div class="card-header">
+        <div class="card-icon" style="background:#4f8ef718">🗂️</div>
+        <div>
+          <div class="card-title">Multi-Series Dashboard</div>
+          <div class="card-subtitle">Aligned matrix &amp; overlay chart</div>
+        </div>
+      </div>
+      <div class="card-desc">
+        Pick a preset collection (macro, finance, mixed-frequency, offset
+        starts). <code>buildTsDataTable</code> aligns every series onto a
+        shared axis, exposing coverage gaps in a matrix preview.
+      </div>
+      <div class="card-footer">
+        <div class="card-tags">
+          <span class="tag" style="color:#4f8ef7;border-color:#4f8ef740;background:#4f8ef710">POST /buildTsDataTable</span>
+        </div>
+        <span class="card-arrow">→</span>
+      </div>
+    </a>
+
+    <!-- Playground -->
+    <a class="demo-card" href="playground.html" style="--card-color:#f97316">
+      <div class="card-header">
+        <div class="card-icon" style="background:#f9731618">🔧</div>
+        <div>
+          <div class="card-title">Pipeline Workbench</div>
+          <div class="card-subtitle">Build your own transformation chain</div>
+        </div>
+      </div>
+      <div class="card-desc">
+        Paste irregular dated observations, build a regular
+        <code>TsData</code> via <code>buildTsData</code>, then stack
+        unlimited operations. Each step renders as a mini sparkline;
+        undo anytime.
+      </div>
+      <div class="card-footer">
+        <div class="card-tags">
+          <span class="tag" style="color:#f97316;border-color:#f9731640;background:#f9731610">POST /buildTsData</span>
+          <span class="tag" style="color:var(--muted);border-color:var(--border)">chained ops</span>
+        </div>
+        <span class="card-arrow">→</span>
+      </div>
+    </a>
+
+  </div>
+
+  <!-- ── Learning ── -->
+  <div class="section-label">Learn</div>
+  <div class="cards-grid" style="margin-bottom:40px">
+
+    <a class="demo-card" href="tutorial.html" style="--card-color:#8b5cf6">
+      <div class="card-header">
+        <div class="card-icon" style="background:#8b5cf618">📚</div>
+        <div>
+          <div class="card-title">Interactive Tutorial</div>
+          <div class="card-subtitle">6 step-by-step lessons</div>
+        </div>
+      </div>
+      <div class="card-desc">
+        Guided walkthrough from time series basics to HP filter decomposition.
+        Each lesson has a live exercise that calls the real API.
+        Progress is tracked as you advance.
+      </div>
+      <div class="card-footer">
+        <div class="card-tags">
+          <span class="tag" style="color:#8b5cf6;border-color:#8b5cf640;background:#8b5cf610">6 lessons</span>
+          <span class="tag" style="color:var(--muted);border-color:var(--border)">progress bar</span>
+        </div>
+        <span class="card-arrow">→</span>
+      </div>
+    </a>
+
+    <a class="demo-card" href="game.html" style="--card-color:#22d3a5">
+      <div class="card-header">
+        <div class="card-icon" style="background:#22d3a518">🎮</div>
+        <div>
+          <div class="card-title">Time Series Challenge</div>
+          <div class="card-subtitle">Guess the transformation</div>
+        </div>
+      </div>
+      <div class="card-desc">
+        A quiz game that calls the API to generate real transformed series.
+        Can you identify which operation was applied?
+        Score points, build streaks and level up.
+      </div>
+      <div class="card-footer">
+        <div class="card-tags">
+          <span class="tag" style="color:#22d3a5;border-color:#22d3a540;background:#22d3a510">levels &amp; scoring</span>
+          <span class="tag" style="color:var(--muted);border-color:var(--border)">localStorage</span>
+        </div>
+        <span class="card-arrow">→</span>
+      </div>
+    </a>
+
+  </div>
+
+  <!-- ── Developer tools ── -->
+  <div class="section-label">Developer tools</div>
+  <div class="tools-grid">
+
+    <a class="tool-card" href="reference.html">
+      <span class="tool-icon">📋</span>
+      <span class="tool-label">Live API Reference</span>
+      <span class="tool-ext">local</span>
+    </a>
+
+    <a class="tool-card" href="q/swagger-ui" target="_blank">
+      <span class="tool-icon">🔍</span>
+      <span class="tool-label">Swagger UI</span>
+      <span class="tool-ext">↗</span>
+    </a>
+
+    <a class="tool-card" href="q/dev-ui" target="_blank">
+      <span class="tool-icon">⚙️</span>
+      <span class="tool-label">Quarkus Dev UI</span>
+      <span class="tool-ext">↗ dev only</span>
+    </a>
+
+    <a class="tool-card" href="https://github.com/jdemetra/jdplus-main" target="_blank">
+      <span class="tool-icon">📦</span>
+      <span class="tool-label">GitHub repository</span>
+      <span class="tool-ext">↗</span>
+    </a>
+
+  </div>
+
+</div>
+
+<footer>
+  <span>
+    Powered by <a href="https://github.com/jdemetra/jdplus-main" target="_blank">JDemetra+ v3</a>
+    · Built on <a href="https://quarkus.io" target="_blank">Quarkus</a>
+    · REST port <strong>4569</strong> (prod) · <strong>4568</strong> (dev)
+  </span>
+  <span style="color:var(--hi)">⚠ Proof of concept — not production-ready</span>
+</footer>
+
+</body>
+</html>
+

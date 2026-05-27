@@ -1,0 +1,669 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Time Series Challenge · JDemetra+ v3</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0f1117;
+      --surface:   #1a1d27;
+      --border:    #2a2d3a;
+      --accent:    #4f8ef7;
+      --success:   #22d3a5;
+      --warning:   #f97316;
+      --danger:    #f87171;
+      --text:      #e2e6f0;
+      --muted:     #8892aa;
+      --radius:    10px;
+    }
+
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.6; }
+    }
+
+    @keyframes slideIn {
+      from { transform: translateY(-20px); opacity: 0; }
+      to { transform: translateY(0); opacity: 1; }
+    }
+
+    @keyframes celebrate {
+      0%, 100% { transform: scale(1); }
+      50% { transform: scale(1.1); }
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 32px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    header svg { flex-shrink: 0; }
+    header .brand { font-size: 1.1rem; font-weight: 700; letter-spacing: .01em; }
+    header .brand span { color: var(--accent); }
+    header .badge {
+      margin-left: auto;
+      font-size: .72rem;
+      background: #22d3a520;
+      color: var(--success);
+      border: 1px solid #22d3a540;
+      border-radius: 20px;
+      padding: 3px 10px;
+    }
+
+    /* ── Hero ── */
+    .hero {
+      padding: 24px 32px 16px;
+      max-width: 1100px;
+      width: 100%;
+      margin: 0 auto;
+    }
+    .hero h1 { font-size: 1.6rem; font-weight: 800; line-height: 1.25; }
+    .hero h1 span { color: var(--accent); }
+    .hero p  { margin-top: 6px; color: var(--muted); line-height: 1.5; font-size: .9rem; }
+
+    /* ── Status bar ── */
+    .status-bar {
+      max-width: 1100px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 0 32px;
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 768px) { .status-bar { grid-template-columns: 1fr 1fr; } }
+    .status-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 16px;
+    }
+    .status-card .label { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+    .status-card .value { font-size: 1.4rem; font-weight: 700; margin-top: 2px; font-variant-numeric: tabular-nums; }
+
+    /* ── Main layout ── */
+    main {
+      flex: 1;
+      max-width: 1100px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 0 32px 48px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* ── Panel ── */
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+    }
+    .panel-title {
+      font-size: .72rem;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+
+    /* ── Challenge ── */
+    .challenge-text {
+      font-size: 1.05rem;
+      line-height: 1.6;
+      color: var(--text);
+      margin-bottom: 20px;
+      padding: 16px;
+      background: var(--bg);
+      border-left: 3px solid var(--accent);
+      border-radius: 6px;
+    }
+    .challenge-text strong { color: var(--accent); }
+
+    /* ── Chart area ── */
+    .chart-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+      margin-bottom: 20px;
+    }
+    @media (max-width: 768px) { .chart-grid { grid-template-columns: 1fr; } }
+    .chart-box {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 16px;
+    }
+    .chart-box h3 {
+      font-size: .85rem;
+      font-weight: 600;
+      color: var(--muted);
+      margin-bottom: 10px;
+      text-align: center;
+    }
+    .chart-wrapper { position: relative; height: 200px; }
+
+    /* ── Options ── */
+    .options-grid {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+    @media (max-width: 768px) { .options-grid { grid-template-columns: 1fr; } }
+    .option-btn {
+      padding: 16px 20px;
+      background: var(--bg);
+      border: 2px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      font-size: .95rem;
+      font-weight: 500;
+      cursor: pointer;
+      transition: all .2s;
+      text-align: left;
+    }
+    .option-btn:hover {
+      border-color: var(--accent);
+      background: var(--surface);
+    }
+    .option-btn.selected {
+      border-color: var(--accent);
+      background: #4f8ef720;
+    }
+    .option-btn.correct {
+      border-color: var(--success);
+      background: #22d3a520;
+      animation: celebrate .4s ease;
+    }
+    .option-btn.wrong {
+      border-color: var(--danger);
+      background: #f8717120;
+    }
+    .option-btn:disabled {
+      cursor: not-allowed;
+      opacity: 0.6;
+    }
+
+    /* ── Action buttons ── */
+    .action-row {
+      display: flex;
+      gap: 12px;
+      margin-top: 20px;
+    }
+    .btn {
+      flex: 1;
+      padding: 12px;
+      font-size: .95rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+    .btn-primary:hover { background: #3a7ae0; }
+    .btn-primary:disabled { background: #2a3a5a; color: var(--muted); cursor: not-allowed; }
+    .btn-success {
+      background: var(--success);
+      color: #000;
+    }
+    .btn-success:hover { background: #1cc598; }
+
+    /* ── Feedback ── */
+    .feedback {
+      display: none;
+      padding: 16px 20px;
+      border-radius: 8px;
+      font-size: .95rem;
+      margin-top: 16px;
+      animation: slideIn .3s ease;
+    }
+    .feedback.visible { display: block; }
+    .feedback.success {
+      background: #22d3a520;
+      border: 1px solid #22d3a540;
+      color: var(--success);
+    }
+    .feedback.error {
+      background: #f8717120;
+      border: 1px solid #f8717140;
+      color: var(--danger);
+    }
+    .feedback strong { font-weight: 700; }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      padding: 16px;
+      font-size: .75rem;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+    }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+
+    /* ── Loading overlay ── */
+    .loading {
+      position: fixed;
+      top: 0; left: 0; right: 0; bottom: 0;
+      background: rgba(15, 17, 23, 0.8);
+      display: none;
+      align-items: center;
+      justify-content: center;
+      z-index: 1000;
+    }
+    .loading.active { display: flex; }
+    .spinner {
+      width: 48px;
+      height: 48px;
+      border: 4px solid var(--border);
+      border-top-color: var(--accent);
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin {
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body>
+
+<div class="loading" id="loading">
+  <div class="spinner"></div>
+</div>
+
+<header>
+  <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+    <rect width="28" height="28" rx="7" fill="#22d3a520"/>
+    <path d="M8 18l4-6 4 3 4-9" stroke="#22d3a5" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" fill="none"/>
+  </svg>
+  <div>
+    <div class="brand"><span>Time Series</span> Challenge</div>
+  </div>
+  <div class="badge">Educational Game</div>
+</header>
+
+<div class="hero">
+  <h1>Master the <span>Time Series API</span></h1>
+  <p>
+    Learn JDemetra+ operations through fun challenges. Can you identify which transformation was applied?
+    Progress through levels to unlock harder puzzles!
+  </p>
+</div>
+
+<div class="status-bar">
+  <div class="status-card">
+    <div class="label">Level</div>
+    <div class="value" id="level">1</div>
+  </div>
+  <div class="status-card">
+    <div class="label">Score</div>
+    <div class="value" id="score">0</div>
+  </div>
+  <div class="status-card">
+    <div class="label">Streak</div>
+    <div class="value" id="streak">0</div>
+  </div>
+  <div class="status-card">
+    <div class="label">Best</div>
+    <div class="value" id="best">0</div>
+  </div>
+</div>
+
+<main>
+
+  <div class="panel">
+    <div class="panel-title">Challenge <span id="challenge-num">1</span></div>
+    <div class="challenge-text" id="challenge-text">
+      Loading challenge...
+    </div>
+
+    <div class="chart-grid">
+      <div class="chart-box">
+        <h3>Original Series</h3>
+        <div class="chart-wrapper">
+          <canvas id="chart-original"></canvas>
+        </div>
+      </div>
+      <div class="chart-box">
+        <h3>Transformed Series</h3>
+        <div class="chart-wrapper">
+          <canvas id="chart-transformed"></canvas>
+        </div>
+      </div>
+    </div>
+
+    <div class="panel-title">Your answer</div>
+    <div class="options-grid" id="options">
+      <!-- Options will be inserted here -->
+    </div>
+
+    <div class="feedback" id="feedback"></div>
+
+    <div class="action-row">
+      <button class="btn btn-primary" id="submit-btn" disabled>Submit Answer</button>
+      <button class="btn btn-success" id="next-btn" style="display:none">Next Challenge →</button>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  Powered by <a href="https://github.com/jdemetra/jdplus-main" target="_blank">JDemetra+ v3</a>
+  · <a href="hodrick-prescott.html">Try the HP Filter Demo</a>
+  · <a href="q/swagger-ui" target="_blank">API Docs</a>
+</footer>
+
+<script>
+  // ─── Game state ────────────────────────────────────────────────────────────
+  const state = {
+    level: 1,
+    score: 0,
+    streak: 0,
+    best: parseInt(localStorage.getItem('tsBest') || '0'),
+    challengeNum: 0,
+    currentChallenge: null,
+    selectedAnswer: null,
+  };
+
+  // ─── Chart instances ───────────────────────────────────────────────────────
+  let chartOriginal, chartTransformed;
+
+  function initCharts() {
+    const commonOptions = {
+      responsive: true,
+      maintainAspectRatio: false,
+      plugins: { legend: { display: false }, tooltip: { enabled: false } },
+      scales: {
+        x: { display: false },
+        y: { ticks: { color: '#8892aa', font: { size: 10 } }, grid: { color: '#2a2d3a' } }
+      },
+      elements: { line: { borderWidth: 2, tension: 0.3 }, point: { radius: 0 } }
+    };
+
+    chartOriginal = new Chart(document.getElementById('chart-original'), {
+      type: 'line',
+      data: { labels: [], datasets: [{ data: [], borderColor: '#4f8ef7' }] },
+      options: commonOptions
+    });
+
+    chartTransformed = new Chart(document.getElementById('chart-transformed'), {
+      type: 'line',
+      data: { labels: [], datasets: [{ data: [], borderColor: '#f97316' }] },
+      options: commonOptions
+    });
+  }
+
+  // ─── Challenge definitions ─────────────────────────────────────────────────
+  const CHALLENGE_TYPES = [
+    // Level 1-3: Basic transformations
+    {
+      id: 'normalize',
+      title: 'Normalize',
+      description: 'The series was <strong>standardized</strong>. Which operation does this?',
+      endpoint: '/hello/normalize',
+      buildRequest: (series) => ({ id: 'challenge', series }),
+      options: [
+        { label: 'Normalize (standardize)', value: 'normalize', correct: true },
+        { label: 'Percentage change', value: 'pct' },
+        { label: 'Difference', value: 'delta' },
+        { label: 'Aggregate', value: 'aggregate' }
+      ],
+      explanation: 'Normalize standardizes the series: (y − mean) / stdev, giving mean=0 and stdev=1.'
+    },
+    {
+      id: 'pct',
+      title: 'Percentage Change',
+      description: 'The series shows <strong>percentage changes</strong>. Which transformation was applied?',
+      endpoint: '/hello/pct',
+      buildRequest: (series) => ({ id: 'challenge', series, lag: 1 }),
+      options: [
+        { label: 'Percentage change (lag 1)', value: 'pct', correct: true },
+        { label: 'Normalize', value: 'normalize' },
+        { label: 'Difference', value: 'delta' },
+        { label: 'Hodrick-Prescott filter', value: 'hp' }
+      ],
+      explanation: 'Percentage change: (y[t] / y[t-1] - 1) × 100 shows the relative change between periods.'
+    },
+    {
+      id: 'delta',
+      title: 'Difference',
+      description: 'The series was <strong>differenced</strong>. Identify the operation.',
+      endpoint: '/hello/delta',
+      buildRequest: (series) => ({ id: 'challenge', series, lag: 1, power: 1 }),
+      options: [
+        { label: 'Difference (lag 1)', value: 'delta', correct: true },
+        { label: 'Percentage change', value: 'pct' },
+        { label: 'Normalize', value: 'normalize' },
+        { label: 'Aggregate', value: 'aggregate' }
+      ],
+      explanation: 'The difference operator: y[t] - y[t-1] removes trends and makes series stationary.'
+    },
+    // Level 4-6: Parameter variations
+    {
+      id: 'pct_lag4',
+      title: 'Year-on-Year Growth',
+      description: 'This is a <strong>year-on-year percentage change</strong> (quarterly data). What lag was used?',
+      endpoint: '/hello/pct',
+      buildRequest: (series) => ({ id: 'challenge', series, lag: 4 }),
+      options: [
+        { label: 'Percentage change (lag 4)', value: 'pct_4', correct: true },
+        { label: 'Percentage change (lag 1)', value: 'pct_1' },
+        { label: 'Difference (lag 4)', value: 'delta_4' },
+        { label: 'Difference (lag 1)', value: 'delta_1' }
+      ],
+      explanation: 'For quarterly data, lag 4 gives year-on-year changes: (y[t] / y[t-4] - 1) × 100.'
+    },
+    {
+      id: 'delta_power2',
+      title: 'Second Difference',
+      description: 'The series was <strong>differenced twice</strong>. What parameters?',
+      endpoint: '/hello/delta',
+      buildRequest: (series) => ({ id: 'challenge', series, lag: 1, power: 2 }),
+      options: [
+        { label: 'Difference (lag 1, power 2)', value: 'delta_1_2', correct: true },
+        { label: 'Difference (lag 1, power 1)', value: 'delta_1_1' },
+        { label: 'Difference (lag 2, power 1)', value: 'delta_2_1' },
+        { label: 'Percentage change', value: 'pct' }
+      ],
+      explanation: 'Power=2 applies the difference operator twice: Δ²y[t] = Δ(Δy[t]).'
+    }
+  ];
+
+  // ─── Series generator ──────────────────────────────────────────────────────
+  function generateSeries() {
+    const n = 40;
+    const series = [];
+    let base = 100;
+    for (let i = 0; i < n; i++) {
+      base += (Math.random() - 0.45) * 3 + 0.5;
+      series.push(+base.toFixed(2));
+    }
+    return {
+      start: { frequency: 'FREQ_QUARTERLY', year: 2010, pos: 0 },
+      values: series
+    };
+  }
+
+  // ─── Challenge logic ───────────────────────────────────────────────────────
+  async function loadChallenge() {
+    state.challengeNum++;
+    document.getElementById('challenge-num').textContent = state.challengeNum;
+
+    // Pick challenge based on level (cycle through with increasing difficulty)
+    const idx = Math.min(state.level - 1, CHALLENGE_TYPES.length - 1);
+    const challengeType = CHALLENGE_TYPES[idx];
+    state.currentChallenge = challengeType;
+
+    // Generate original series
+    const originalSeries = generateSeries();
+
+    // Call API to get transformed series
+    document.getElementById('loading').classList.add('active');
+    try {
+      const req = challengeType.buildRequest(originalSeries);
+      const resp = await fetch(challengeType.endpoint, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(req)
+      });
+
+      if (!resp.ok) throw new Error(`API error: ${resp.status}`);
+      const data = await resp.json();
+
+      // Extract transformed values
+      let transformedValues;
+      if (data.series) {
+        transformedValues = data.series.values;
+      } else if (data.trend) {
+        transformedValues = data.trend.values; // HP filter
+      } else {
+        throw new Error('Unexpected response format');
+      }
+
+      // Update charts
+      const labels = originalSeries.values.map((_, i) => `t${i}`);
+      chartOriginal.data.labels = labels;
+      chartOriginal.data.datasets[0].data = originalSeries.values;
+      chartOriginal.update();
+
+      chartTransformed.data.labels = labels.slice(0, transformedValues.length);
+      chartTransformed.data.datasets[0].data = transformedValues;
+      chartTransformed.update();
+
+      // Update UI
+      document.getElementById('challenge-text').innerHTML = challengeType.description;
+      renderOptions(challengeType.options);
+
+    } catch (err) {
+      console.error('Error loading challenge:', err);
+      alert('Failed to load challenge. Please refresh the page.');
+    } finally {
+      document.getElementById('loading').classList.remove('active');
+    }
+  }
+
+  function renderOptions(options) {
+    const container = document.getElementById('options');
+    container.innerHTML = '';
+
+    // Shuffle options
+    const shuffled = [...options].sort(() => Math.random() - 0.5);
+
+    shuffled.forEach(opt => {
+      const btn = document.createElement('button');
+      btn.className = 'option-btn';
+      btn.textContent = opt.label;
+      btn.dataset.value = opt.value;
+      btn.dataset.correct = opt.correct || false;
+
+      btn.addEventListener('click', () => {
+        // Deselect all
+        container.querySelectorAll('.option-btn').forEach(b => b.classList.remove('selected'));
+        // Select this one
+        btn.classList.add('selected');
+        state.selectedAnswer = opt.value;
+        document.getElementById('submit-btn').disabled = false;
+      });
+
+      container.appendChild(btn);
+    });
+
+    // Reset state
+    state.selectedAnswer = null;
+    document.getElementById('submit-btn').disabled = true;
+    document.getElementById('submit-btn').style.display = 'block';
+    document.getElementById('next-btn').style.display = 'none';
+    document.getElementById('feedback').classList.remove('visible', 'success', 'error');
+  }
+
+  // ─── Check answer ──────────────────────────────────────────────────────────
+  function submitAnswer() {
+    const options = document.querySelectorAll('.option-btn');
+    const selectedBtn = Array.from(options).find(btn => btn.dataset.value === state.selectedAnswer);
+    const isCorrect = selectedBtn.dataset.correct === 'true';
+
+    // Disable all options
+    options.forEach(btn => {
+      btn.disabled = true;
+      if (btn.dataset.correct === 'true') {
+        btn.classList.add('correct');
+      } else if (btn === selectedBtn && !isCorrect) {
+        btn.classList.add('wrong');
+      }
+    });
+
+    // Update score
+    const feedback = document.getElementById('feedback');
+    if (isCorrect) {
+      state.score += state.level * 10;
+      state.streak++;
+      feedback.className = 'feedback visible success';
+      feedback.innerHTML = `<strong>✓ Correct!</strong> ${state.currentChallenge.explanation}`;
+
+      // Level up every 3 correct in a row
+      if (state.streak % 3 === 0 && state.level < CHALLENGE_TYPES.length) {
+        state.level++;
+        feedback.innerHTML += `<br><br><strong>🎉 Level Up!</strong> You've reached level ${state.level}!`;
+      }
+    } else {
+      state.streak = 0;
+      feedback.className = 'feedback visible error';
+      feedback.innerHTML = `<strong>✗ Not quite.</strong> ${state.currentChallenge.explanation}`;
+    }
+
+    // Update best score
+    if (state.score > state.best) {
+      state.best = state.score;
+      localStorage.setItem('tsBest', state.best);
+    }
+
+    updateStatus();
+
+    // Show next button
+    document.getElementById('submit-btn').style.display = 'none';
+    document.getElementById('next-btn').style.display = 'block';
+  }
+
+  function updateStatus() {
+    document.getElementById('level').textContent = state.level;
+    document.getElementById('score').textContent = state.score;
+    document.getElementById('streak').textContent = state.streak;
+    document.getElementById('best').textContent = state.best;
+  }
+
+  // ─── Event listeners ───────────────────────────────────────────────────────
+  document.getElementById('submit-btn').addEventListener('click', submitAnswer);
+  document.getElementById('next-btn').addEventListener('click', loadChallenge);
+
+  // ─── Initialize ────────────────────────────────────────────────────────────
+  initCharts();
+  updateStatus();
+  loadChallenge();
+</script>
+</body>
+</html>
+

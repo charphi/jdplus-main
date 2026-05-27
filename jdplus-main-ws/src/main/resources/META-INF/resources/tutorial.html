@@ -1,0 +1,1310 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Time Series Analysis Tutorial · JDemetra+ v3</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0f1117;
+      --surface:   #1a1d27;
+      --border:    #2a2d3a;
+      --accent:    #4f8ef7;
+      --success:   #22d3a5;
+      --warning:   #f97316;
+      --info:      #8b5cf6;
+      --text:      #e2e6f0;
+      --muted:     #8892aa;
+      --radius:    10px;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 32px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    header svg { flex-shrink: 0; }
+    header .brand { font-size: 1.1rem; font-weight: 700; }
+    header .brand span { color: var(--accent); }
+    header .badge {
+      margin-left: auto;
+      font-size: .72rem;
+      background: #8b5cf620;
+      color: var(--info);
+      border: 1px solid #8b5cf640;
+      border-radius: 20px;
+      padding: 3px 10px;
+    }
+
+    /* ── Hero ── */
+    .hero {
+      padding: 36px 32px 24px;
+      max-width: 1100px;
+      width: 100%;
+      margin: 0 auto;
+    }
+    .hero h1 { font-size: 1.85rem; font-weight: 800; line-height: 1.25; }
+    .hero h1 span { color: var(--accent); }
+    .hero p { margin-top: 10px; color: var(--muted); line-height: 1.65; font-size: .98rem; }
+
+    /* ── Main layout ── */
+    main {
+      flex: 1;
+      max-width: 1100px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 0 32px 48px;
+      display: grid;
+      grid-template-columns: 280px 1fr;
+      gap: 24px;
+    }
+
+    @media (max-width: 900px) {
+      main { grid-template-columns: 1fr; }
+      aside { order: -1; }
+    }
+
+    /* ── Sidebar ── */
+    aside {
+      position: sticky;
+      top: 20px;
+      height: fit-content;
+    }
+
+    .lesson-nav {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+    }
+
+    .lesson-nav h3 {
+      font-size: .75rem;
+      text-transform: uppercase;
+      letter-spacing: .1em;
+      color: var(--muted);
+      margin-bottom: 12px;
+    }
+
+    .lesson-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 12px;
+      border-radius: 6px;
+      cursor: pointer;
+      transition: all .15s;
+      margin-bottom: 4px;
+    }
+
+    .lesson-item:hover {
+      background: var(--bg);
+    }
+
+    .lesson-item.active {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .lesson-item .number {
+      width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: var(--border);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: .75rem;
+      font-weight: 700;
+      flex-shrink: 0;
+    }
+
+    .lesson-item.active .number {
+      background: rgba(255,255,255,0.25);
+    }
+
+    .lesson-item.completed .number {
+      background: var(--success);
+      color: var(--bg);
+    }
+
+    .lesson-item .title {
+      font-size: .88rem;
+      font-weight: 500;
+    }
+
+    /* ── Content area ── */
+    .content {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* ── Panel ── */
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 24px;
+    }
+
+    .panel-title {
+      font-size: 1.3rem;
+      font-weight: 700;
+      margin-bottom: 12px;
+    }
+
+    .panel-subtitle {
+      font-size: .72rem;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 14px;
+      margin-top: 20px;
+    }
+
+    .panel-subtitle:first-child { margin-top: 0; }
+
+    .lesson-content p {
+      line-height: 1.7;
+      color: var(--text);
+      margin-bottom: 14px;
+    }
+
+    .lesson-content ul {
+      margin: 14px 0;
+      padding-left: 20px;
+    }
+
+    .lesson-content li {
+      margin-bottom: 8px;
+      line-height: 1.6;
+      color: var(--text);
+    }
+
+    .lesson-content code {
+      background: var(--bg);
+      color: var(--success);
+      padding: 2px 6px;
+      border-radius: 3px;
+      font-size: .9em;
+      font-family: 'Consolas', monospace;
+    }
+
+    .lesson-content pre {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 14px;
+      overflow-x: auto;
+      margin: 14px 0;
+      font-size: .85rem;
+      line-height: 1.5;
+    }
+
+    .lesson-content pre code {
+      background: none;
+      padding: 0;
+    }
+
+    /* ── Info boxes ── */
+    .info-box {
+      background: var(--bg);
+      border-left: 3px solid var(--info);
+      padding: 14px 16px;
+      border-radius: 4px;
+      margin: 16px 0;
+    }
+
+    .info-box.success { border-left-color: var(--success); }
+    .info-box.warning { border-left-color: var(--warning); }
+
+    .info-box strong {
+      display: block;
+      margin-bottom: 6px;
+      font-size: .9rem;
+    }
+
+    .info-box p {
+      margin-bottom: 0;
+      font-size: .9rem;
+    }
+
+    /* ── Interactive exercise ── */
+    .exercise {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 20px;
+      margin: 20px 0;
+    }
+
+    .exercise-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+
+    .exercise-badge {
+      background: var(--info);
+      color: #fff;
+      padding: 4px 10px;
+      border-radius: 4px;
+      font-size: .75rem;
+      font-weight: 600;
+      text-transform: uppercase;
+    }
+
+    .exercise-title {
+      font-size: 1.05rem;
+      font-weight: 600;
+    }
+
+    /* ── Controls ── */
+    .control-group {
+      margin: 16px 0;
+    }
+
+    .control-group label {
+      display: block;
+      font-size: .85rem;
+      color: var(--muted);
+      margin-bottom: 6px;
+      font-weight: 500;
+    }
+
+    input[type="number"], select, textarea {
+      width: 100%;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      padding: 10px;
+      font-size: .9rem;
+      font-family: inherit;
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 80px;
+      font-family: 'Consolas', monospace;
+    }
+
+    input:focus, select:focus, textarea:focus {
+      outline: 2px solid var(--accent);
+      border-color: transparent;
+    }
+
+    /* ── Buttons ── */
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      padding: 10px 18px;
+      border-radius: 6px;
+      font-size: .9rem;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+      transition: all .15s;
+    }
+
+    .btn-primary {
+      background: var(--accent);
+      color: #fff;
+    }
+
+    .btn-primary:hover { background: #3a7ae0; }
+    .btn-primary:disabled {
+      background: var(--border);
+      color: var(--muted);
+      cursor: not-allowed;
+    }
+
+    .btn-secondary {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+
+    .btn-secondary:hover {
+      background: var(--border);
+    }
+
+    .btn-group {
+      display: flex;
+      gap: 10px;
+      margin-top: 16px;
+    }
+
+    /* ── Chart ── */
+    .chart-wrapper {
+      position: relative;
+      height: 320px;
+      margin: 20px 0;
+    }
+
+    /* ── Results ── */
+    .result-box {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 16px;
+      margin-top: 16px;
+      display: none;
+    }
+
+    .result-box.visible { display: block; }
+
+    .result-box pre {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 4px;
+      padding: 12px;
+      overflow-x: auto;
+      font-size: .8rem;
+      margin: 10px 0 0;
+    }
+
+    /* ── Progress indicator ── */
+    .progress-bar {
+      height: 4px;
+      background: var(--border);
+      border-radius: 2px;
+      overflow: hidden;
+      margin-top: 12px;
+    }
+
+    .progress-fill {
+      height: 100%;
+      background: var(--accent);
+      transition: width .3s;
+    }
+
+    /* ── Navigation buttons ── */
+    .lesson-nav-buttons {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 24px;
+      padding-top: 24px;
+      border-top: 1px solid var(--border);
+    }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      padding: 20px;
+      font-size: .75rem;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+    }
+
+    footer a {
+      color: var(--accent);
+      text-decoration: none;
+    }
+
+    footer a:hover { text-decoration: underline; }
+
+    /* ── Hidden state ── */
+    .hidden { display: none !important; }
+  </style>
+</head>
+<body>
+
+<header>
+  <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+    <rect width="28" height="28" rx="7" fill="#8b5cf620"/>
+    <path d="M8 18L10 14L14 16L18 10L20 8" stroke="#8b5cf6" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
+    <circle cx="10" cy="14" r="2" fill="#8b5cf6"/>
+    <circle cx="14" cy="16" r="2" fill="#8b5cf6"/>
+    <circle cx="18" cy="10" r="2" fill="#8b5cf6"/>
+  </svg>
+  <div>
+    <div class="brand"><span>JDemetra+</span> v3 · Interactive Tutorial</div>
+  </div>
+  <div class="badge">Learn by doing</div>
+</header>
+
+<div class="hero">
+  <h1>Time Series Analysis <span>Tutorial</span></h1>
+  <p>
+    Welcome to the interactive tutorial! Learn time series analysis concepts through hands-on exercises.
+    Each lesson builds on the previous one, teaching you how to use the JDemetra+ REST API
+    for real-world economic and statistical analysis.
+  </p>
+  <div class="progress-bar">
+    <div class="progress-fill" id="progress-fill" style="width: 0%"></div>
+  </div>
+</div>
+
+<main>
+  <!-- ── Sidebar Navigation ── -->
+  <aside>
+    <div class="lesson-nav">
+      <h3>Lessons</h3>
+      <div class="lesson-item active" data-lesson="1">
+        <div class="number">1</div>
+        <div class="title">Introduction</div>
+      </div>
+      <div class="lesson-item" data-lesson="2">
+        <div class="number">2</div>
+        <div class="title">Statistics</div>
+      </div>
+      <div class="lesson-item" data-lesson="3">
+        <div class="number">3</div>
+        <div class="title">Normalization</div>
+      </div>
+      <div class="lesson-item" data-lesson="4">
+        <div class="number">4</div>
+        <div class="title">Transformations</div>
+      </div>
+      <div class="lesson-item" data-lesson="5">
+        <div class="number">5</div>
+        <div class="title">HP Filter</div>
+      </div>
+      <div class="lesson-item" data-lesson="6">
+        <div class="number">6</div>
+        <div class="title">Summary</div>
+      </div>
+    </div>
+  </aside>
+
+  <!-- ── Content Area ── -->
+  <div class="content">
+
+    <!-- ═══ LESSON 1: Introduction ═══ -->
+    <div class="panel lesson-panel" id="lesson-1">
+      <div class="panel-title">📚 Lesson 1: Introduction to Time Series</div>
+
+      <div class="lesson-content">
+        <p>
+          A <strong>time series</strong> is a sequence of data points indexed in time order.
+          Examples include daily stock prices, monthly unemployment rates, quarterly GDP figures,
+          or yearly population counts.
+        </p>
+
+        <div class="info-box">
+          <strong>💡 Key Concept</strong>
+          <p>Time series data has three essential components: <strong>observations</strong> (the values),
+          <strong>time periods</strong> (when each value was measured), and <strong>frequency</strong>
+          (how often measurements occur).</p>
+        </div>
+
+        <div class="panel-subtitle">Common Frequencies</div>
+        <ul>
+          <li><code>FREQ_YEARLY</code> – Annual data (e.g., yearly inflation)</li>
+          <li><code>FREQ_QUARTERLY</code> – Every 3 months (e.g., GDP reports)</li>
+          <li><code>FREQ_MONTHLY</code> – Monthly measurements (e.g., employment)</li>
+          <li><code>FREQ_DAILY</code> – Daily observations (e.g., stock prices)</li>
+        </ul>
+
+        <div class="panel-subtitle">Example: Time Series Structure</div>
+        <pre><code>{
+  "id": "gdp_series",
+  "series": {
+    "start": {
+      "frequency": "FREQ_QUARTERLY",
+      "year": 2020,
+      "pos": 0
+    },
+    "values": [100.5, 102.3, 101.8, 104.2]
+  }
+}</code></pre>
+
+        <p>
+          This represents quarterly GDP data starting from Q1 2020. The <code>pos</code> field
+          indicates the position within the year (0 = Q1, 1 = Q2, etc.).
+        </p>
+
+        <div class="info-box success">
+          <strong>✓ Ready to continue?</strong>
+          <p>Click "Next Lesson" to learn about calculating descriptive statistics on time series data.</p>
+        </div>
+      </div>
+
+      <div class="lesson-nav-buttons">
+        <button class="btn btn-secondary" disabled>← Previous</button>
+        <button class="btn btn-primary" onclick="nextLesson(2)">Next Lesson →</button>
+      </div>
+    </div>
+
+    <!-- ═══ LESSON 2: Statistics ═══ -->
+    <div class="panel lesson-panel hidden" id="lesson-2">
+      <div class="panel-title">📊 Lesson 2: Descriptive Statistics</div>
+
+      <div class="lesson-content">
+        <p>
+          Before analyzing a time series, we typically compute <strong>descriptive statistics</strong>
+          to understand its basic properties: central tendency (mean), spread (standard deviation),
+          and distribution (quartiles).
+        </p>
+
+        <div class="panel-subtitle">The Statistics Endpoint</div>
+        <p>
+          The <code>POST /hello/statistics</code> endpoint calculates:
+        </p>
+        <ul>
+          <li><strong>n</strong> – number of observations</li>
+          <li><strong>average</strong> – arithmetic mean</li>
+          <li><strong>stdev</strong> – standard deviation</li>
+          <li><strong>min/max</strong> – range of values</li>
+          <li><strong>q25, q50, q75</strong> – quartiles (25th, 50th, 75th percentiles)</li>
+        </ul>
+
+        <div class="exercise">
+          <div class="exercise-header">
+            <span class="exercise-badge">Exercise</span>
+            <span class="exercise-title">Calculate Statistics</span>
+          </div>
+
+          <p>Enter a series of numbers (comma-separated) to calculate their statistics:</p>
+
+          <div class="control-group">
+            <label for="stats-input">Data values</label>
+            <textarea id="stats-input" placeholder="e.g., 100, 102, 98, 105, 103, 107">100, 102, 98, 105, 103, 107, 110, 108</textarea>
+          </div>
+
+          <div class="btn-group">
+            <button class="btn btn-primary" onclick="runStatistics()">
+              <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M4 2l9 6-9 6V2z"/>
+              </svg>
+              Calculate
+            </button>
+            <button class="btn btn-secondary" onclick="clearStats()">Clear</button>
+          </div>
+
+          <div class="result-box" id="stats-result">
+            <strong>Results:</strong>
+            <pre id="stats-output"></pre>
+          </div>
+        </div>
+
+        <div class="info-box warning">
+          <strong>⚡ Try it!</strong>
+          <p>Complete the exercise above, then proceed to the next lesson.</p>
+        </div>
+      </div>
+
+      <div class="lesson-nav-buttons">
+        <button class="btn btn-secondary" onclick="prevLesson(1)">← Previous</button>
+        <button class="btn btn-primary" onclick="nextLesson(3)">Next Lesson →</button>
+      </div>
+    </div>
+
+    <!-- ═══ LESSON 3: Normalization ═══ -->
+    <div class="panel lesson-panel hidden" id="lesson-3">
+      <div class="panel-title">📏 Lesson 3: Normalization (Standardization)</div>
+
+      <div class="lesson-content">
+        <p>
+          <strong>Normalization</strong> (also called standardization) transforms data so it has
+          a mean of 0 and standard deviation of 1. This is useful for comparing series with different
+          scales or units.
+        </p>
+
+        <div class="panel-subtitle">The Formula</div>
+        <pre><code>normalized_value = (original_value - mean) / stdev</code></pre>
+
+        <p>
+          For example, if your series has mean = 100 and stdev = 10, a value of 110 becomes:
+          <code>(110 - 100) / 10 = 1.0</code>
+        </p>
+
+        <div class="exercise">
+          <div class="exercise-header">
+            <span class="exercise-badge">Exercise</span>
+            <span class="exercise-title">Normalize a Series</span>
+          </div>
+
+          <p>Enter values to normalize them (standardize to mean=0, stdev=1):</p>
+
+          <div class="control-group">
+            <label for="norm-input">Data values</label>
+            <textarea id="norm-input" placeholder="e.g., 50, 60, 55, 65, 70">50, 60, 55, 65, 70, 58, 62</textarea>
+          </div>
+
+          <div class="btn-group">
+            <button class="btn btn-primary" onclick="runNormalize()">
+              <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M4 2l9 6-9 6V2z"/>
+              </svg>
+              Normalize
+            </button>
+            <button class="btn btn-secondary" onclick="clearNorm()">Clear</button>
+          </div>
+
+          <div class="result-box" id="norm-result">
+            <strong>Normalized values:</strong>
+            <div class="chart-wrapper">
+              <canvas id="norm-chart"></canvas>
+            </div>
+            <pre id="norm-output"></pre>
+          </div>
+        </div>
+
+        <div class="info-box">
+          <strong>💡 Why normalize?</strong>
+          <p>Normalization helps when comparing multiple series with different units (e.g., comparing
+          temperature in Celsius with pressure in Pascals). It also improves machine learning algorithms
+          that are sensitive to scale.</p>
+        </div>
+      </div>
+
+      <div class="lesson-nav-buttons">
+        <button class="btn btn-secondary" onclick="prevLesson(2)">← Previous</button>
+        <button class="btn btn-primary" onclick="nextLesson(4)">Next Lesson →</button>
+      </div>
+    </div>
+
+    <!-- ═══ LESSON 4: Transformations ═══ -->
+    <div class="panel lesson-panel hidden" id="lesson-4">
+      <div class="panel-title">🔄 Lesson 4: Time Series Transformations</div>
+
+      <div class="lesson-content">
+        <p>
+          Time series transformations help us analyze changes and trends. Two fundamental operations are:
+        </p>
+
+        <div class="panel-subtitle">1. Percentage Change (Pct)</div>
+        <p>
+          Calculates the relative change between periods:
+          <code>(y[t] / y[t-lag] - 1) × 100</code>
+        </p>
+        <p>
+          For example, if a value grows from 100 to 105, the percentage change is:
+          <code>(105 / 100 - 1) × 100 = 5%</code>
+        </p>
+
+        <div class="panel-subtitle">2. Difference (Delta)</div>
+        <p>
+          Calculates the absolute change: <code>y[t] - y[t-lag]</code>
+        </p>
+        <p>
+          For example, if a value grows from 100 to 105, the difference is: <code>105 - 100 = 5</code>
+        </p>
+
+        <div class="exercise">
+          <div class="exercise-header">
+            <span class="exercise-badge">Exercise</span>
+            <span class="exercise-title">Compare Transformations</span>
+          </div>
+
+          <p>Enter a series and see both percentage change and difference:</p>
+
+          <div class="control-group">
+            <label for="transform-input">Data values</label>
+            <textarea id="transform-input" placeholder="e.g., 100, 105, 110, 108, 115">100, 105, 110, 108, 115, 120</textarea>
+          </div>
+
+          <div class="control-group">
+            <label for="transform-lag">Lag (periods to compare)</label>
+            <input type="number" id="transform-lag" value="1" min="1" max="4">
+          </div>
+
+          <div class="btn-group">
+            <button class="btn btn-primary" onclick="runTransformations()">
+              <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M4 2l9 6-9 6V2z"/>
+              </svg>
+              Transform
+            </button>
+            <button class="btn btn-secondary" onclick="clearTransform()">Clear</button>
+          </div>
+
+          <div class="result-box" id="transform-result">
+            <div class="chart-wrapper">
+              <canvas id="transform-chart"></canvas>
+            </div>
+            <pre id="transform-output"></pre>
+          </div>
+        </div>
+
+        <div class="info-box success">
+          <strong>✓ When to use each?</strong>
+          <p><strong>Percentage change</strong> is better for comparing growth rates across different scales.
+          <strong>Difference</strong> is better when absolute changes matter (e.g., number of new jobs).</p>
+        </div>
+      </div>
+
+      <div class="lesson-nav-buttons">
+        <button class="btn btn-secondary" onclick="prevLesson(3)">← Previous</button>
+        <button class="btn btn-primary" onclick="nextLesson(5)">Next Lesson →</button>
+      </div>
+    </div>
+
+    <!-- ═══ LESSON 5: HP Filter ═══ -->
+    <div class="panel lesson-panel hidden" id="lesson-5">
+      <div class="panel-title">📈 Lesson 5: Hodrick-Prescott Filter</div>
+
+      <div class="lesson-content">
+        <p>
+          The <strong>Hodrick-Prescott (HP) filter</strong> separates a time series into two components:
+        </p>
+        <ul>
+          <li><strong>Trend</strong> – the smooth long-term movement</li>
+          <li><strong>Cycle/Noise</strong> – short-term fluctuations around the trend</li>
+        </ul>
+
+        <p>
+          The smoothness of the trend is controlled by parameter <strong>λ (lambda)</strong>:
+        </p>
+        <ul>
+          <li>Small λ (e.g., 100) → trend follows data closely</li>
+          <li>Large λ (e.g., 14,400) → trend is very smooth</li>
+        </ul>
+
+        <div class="info-box">
+          <strong>💡 Common λ values</strong>
+          <p>
+            • Annual data: λ = 100<br>
+            • Quarterly data: λ = 1,600<br>
+            • Monthly data: λ = 14,400
+          </p>
+        </div>
+
+        <div class="exercise">
+          <div class="exercise-header">
+            <span class="exercise-badge">Exercise</span>
+            <span class="exercise-title">Apply HP Filter</span>
+          </div>
+
+          <p>Enter a series and extract its trend using the HP filter:</p>
+
+          <div class="control-group">
+            <label for="hp-input">Data values</label>
+            <textarea id="hp-input" placeholder="e.g., 100, 103, 101, 105, 102, 108">100, 103, 101, 105, 102, 108, 106, 110, 109, 113, 111, 115</textarea>
+          </div>
+
+          <div class="control-group">
+            <label for="hp-lambda">Lambda (λ) - smoothing parameter</label>
+            <select id="hp-lambda">
+              <option value="100">100 (Annual - less smooth)</option>
+              <option value="1600" selected>1,600 (Quarterly - standard)</option>
+              <option value="14400">14,400 (Monthly - very smooth)</option>
+            </select>
+          </div>
+
+          <div class="btn-group">
+            <button class="btn btn-primary" onclick="runHPFilter()">
+              <svg width="14" height="14" fill="currentColor" viewBox="0 0 16 16">
+                <path d="M4 2l9 6-9 6V2z"/>
+              </svg>
+              Run HP Filter
+            </button>
+            <button class="btn btn-secondary" onclick="clearHP()">Clear</button>
+          </div>
+
+          <div class="result-box" id="hp-result">
+            <strong>HP Filter Decomposition:</strong>
+            <div class="chart-wrapper">
+              <canvas id="hp-chart"></canvas>
+            </div>
+            <pre id="hp-output"></pre>
+          </div>
+        </div>
+
+        <div class="info-box warning">
+          <strong>⚡ Experiment!</strong>
+          <p>Try different λ values to see how they affect the smoothness of the trend component.</p>
+        </div>
+      </div>
+
+      <div class="lesson-nav-buttons">
+        <button class="btn btn-secondary" onclick="prevLesson(4)">← Previous</button>
+        <button class="btn btn-primary" onclick="nextLesson(6)">Next Lesson →</button>
+      </div>
+    </div>
+
+    <!-- ═══ LESSON 6: Summary ═══ -->
+    <div class="panel lesson-panel hidden" id="lesson-6">
+      <div class="panel-title">🎓 Lesson 6: Summary & Next Steps</div>
+
+      <div class="lesson-content">
+        <p>
+          Congratulations! You've completed the JDemetra+ time series analysis tutorial.
+          Let's review what you've learned:
+        </p>
+
+        <div class="panel-subtitle">What You Learned</div>
+        <ul>
+          <li>✓ Understanding time series structure and frequencies</li>
+          <li>✓ Calculating descriptive statistics</li>
+          <li>✓ Normalizing data for comparison</li>
+          <li>✓ Computing percentage changes and differences</li>
+          <li>✓ Decomposing series using the Hodrick-Prescott filter</li>
+        </ul>
+
+        <div class="panel-subtitle">Available API Endpoints</div>
+        <pre><code>POST /hello/statistics      # Descriptive statistics
+POST /hello/normalize       # Standardization (z-score)
+POST /hello/pct             # Percentage change
+POST /hello/delta           # Difference operator
+POST /hello/aggregate       # Frequency conversion
+POST /hello/hodrickPrescott # HP filter decomposition
+POST /hello/buildTsData     # Build series from observations</code></pre>
+
+        <div class="info-box success">
+          <strong>✓ Next Steps</strong>
+          <p>
+            • Explore the <a href="q/swagger-ui" target="_blank">Swagger UI</a> for full API documentation<br>
+            • Try the <a href="hodrick-prescott.html">HP Filter demo</a> with real-time visualizations<br>
+            • Check the <a href="https://github.com/jdemetra/jdplus-main" target="_blank">GitHub repository</a> for more examples
+          </p>
+        </div>
+
+        <div class="panel-subtitle">Example: Complete Workflow</div>
+        <pre><code>// 1. Calculate statistics
+POST /hello/statistics
+{ "id": "gdp", "series": {...} }
+
+// 2. Normalize for comparison
+POST /hello/normalize
+{ "id": "gdp", "series": {...} }
+
+// 3. Calculate growth rate
+POST /hello/pct
+{ "id": "gdp", "series": {...}, "lag": 1 }
+
+// 4. Extract trend
+POST /hello/hodrickPrescott
+{ "id": "gdp", "series": {...}, "lambda": 1600 }</code></pre>
+
+        <div class="info-box">
+          <strong>🚀 Advanced Topics</strong>
+          <p>
+            To dive deeper into econometrics, explore seasonal adjustment (TRAMO-SEATS, X-13ARIMA),
+            calendar effects, outlier detection, and forecasting — all available in the full JDemetra+ suite.
+          </p>
+        </div>
+      </div>
+
+      <div class="lesson-nav-buttons">
+        <button class="btn btn-secondary" onclick="prevLesson(5)">← Previous</button>
+        <button class="btn btn-primary" onclick="restartTutorial()">🔄 Restart Tutorial</button>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<footer>
+  Powered by <a href="https://github.com/jdemetra/jdplus-main" target="_blank">JDemetra+ v3</a>
+  · <a href="hodrick-prescott.html">HP Filter Demo</a>
+  · <a href="q/swagger-ui" target="_blank">API Documentation</a>
+</footer>
+
+<script>
+  // ═══ State Management ═══
+  let currentLesson = 1;
+  const totalLessons = 6;
+  const completedLessons = new Set();
+  let charts = {};
+
+  // ═══ Navigation ═══
+  function showLesson(lessonNum) {
+    // Hide all lessons
+    document.querySelectorAll('.lesson-panel').forEach(p => p.classList.add('hidden'));
+
+    // Show target lesson
+    const target = document.getElementById(`lesson-${lessonNum}`);
+    if (target) {
+      target.classList.remove('hidden');
+      currentLesson = lessonNum;
+
+      // Update sidebar
+      document.querySelectorAll('.lesson-item').forEach(item => {
+        item.classList.remove('active');
+        const num = parseInt(item.dataset.lesson);
+        if (num === lessonNum) {
+          item.classList.add('active');
+        }
+        if (completedLessons.has(num)) {
+          item.classList.add('completed');
+        }
+      });
+
+      // Update progress
+      updateProgress();
+
+      // Scroll to top
+      window.scrollTo({ top: 0, behavior: 'smooth' });
+    }
+  }
+
+  function nextLesson(lessonNum) {
+    completedLessons.add(currentLesson);
+    showLesson(lessonNum);
+  }
+
+  function prevLesson(lessonNum) {
+    showLesson(lessonNum);
+  }
+
+  function restartTutorial() {
+    completedLessons.clear();
+    showLesson(1);
+  }
+
+  function updateProgress() {
+    const progress = (completedLessons.size / totalLessons) * 100;
+    document.getElementById('progress-fill').style.width = `${progress}%`;
+  }
+
+  // Add click handlers to sidebar
+  document.querySelectorAll('.lesson-item').forEach(item => {
+    item.addEventListener('click', function() {
+      const lessonNum = parseInt(this.dataset.lesson);
+      showLesson(lessonNum);
+    });
+  });
+
+  // ═══ Utility Functions ═══
+  function parseValues(input) {
+    return input.split(',').map(v => parseFloat(v.trim())).filter(v => !isNaN(v));
+  }
+
+  function formatJSON(obj) {
+    return JSON.stringify(obj, null, 2);
+  }
+
+  // ═══ Exercise: Statistics ═══
+  async function runStatistics() {
+    const input = document.getElementById('stats-input').value;
+    const values = parseValues(input);
+
+    if (values.length === 0) {
+      alert('Please enter valid numbers');
+      return;
+    }
+
+    const request = {
+      id: 'tutorial_stats',
+      series: {
+        start: { frequency: 'FREQ_YEARLY', year: 2020, pos: 0 },
+        values: values
+      }
+    };
+
+    try {
+      const resp = await fetch('/hello/statistics', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request)
+      });
+
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+      const data = await resp.json();
+      const output = `n:       ${data.n}
+average: ${data.average?.toFixed(3)}
+stdev:   ${data.stdev?.toFixed(3)}
+min:     ${data.min?.toFixed(3)}
+max:     ${data.max?.toFixed(3)}
+q25:     ${data.q25?.toFixed(3)}
+q50:     ${data.q50?.toFixed(3)}
+q75:     ${data.q75?.toFixed(3)}`;
+
+      document.getElementById('stats-output').textContent = output;
+      document.getElementById('stats-result').classList.add('visible');
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  }
+
+  function clearStats() {
+    document.getElementById('stats-input').value = '';
+    document.getElementById('stats-result').classList.remove('visible');
+  }
+
+  // ═══ Exercise: Normalization ═══
+  async function runNormalize() {
+    const input = document.getElementById('norm-input').value;
+    const values = parseValues(input);
+
+    if (values.length === 0) {
+      alert('Please enter valid numbers');
+      return;
+    }
+
+    const request = {
+      id: 'tutorial_norm',
+      series: {
+        start: { frequency: 'FREQ_YEARLY', year: 2020, pos: 0 },
+        values: values
+      }
+    };
+
+    try {
+      const resp = await fetch('/hello/normalize', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request)
+      });
+
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+      const data = await resp.json();
+      const normalized = data.series.values;
+
+      document.getElementById('norm-output').textContent =
+        `Original:   [${values.map(v => v.toFixed(1)).join(', ')}]\nNormalized: [${normalized.map(v => v.toFixed(3)).join(', ')}]`;
+
+      // Create chart
+      createNormChart(values, normalized);
+      document.getElementById('norm-result').classList.add('visible');
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  }
+
+  function createNormChart(original, normalized) {
+    const ctx = document.getElementById('norm-chart');
+    if (charts.norm) charts.norm.destroy();
+
+    const labels = original.map((_, i) => `t${i+1}`);
+
+    charts.norm = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Original',
+            data: original,
+            borderColor: '#4f8ef7',
+            backgroundColor: '#4f8ef720',
+            yAxisID: 'y'
+          },
+          {
+            label: 'Normalized',
+            data: normalized,
+            borderColor: '#22d3a5',
+            backgroundColor: '#22d3a520',
+            yAxisID: 'y1'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: { position: 'left', title: { display: true, text: 'Original' } },
+          y1: { position: 'right', title: { display: true, text: 'Normalized' }, grid: { drawOnChartArea: false } }
+        }
+      }
+    });
+  }
+
+  function clearNorm() {
+    document.getElementById('norm-input').value = '';
+    document.getElementById('norm-result').classList.remove('visible');
+  }
+
+  // ═══ Exercise: Transformations ═══
+  async function runTransformations() {
+    const input = document.getElementById('transform-input').value;
+    const values = parseValues(input);
+    const lag = parseInt(document.getElementById('transform-lag').value);
+
+    if (values.length === 0) {
+      alert('Please enter valid numbers');
+      return;
+    }
+
+    const request = {
+      id: 'tutorial_transform',
+      series: {
+        start: { frequency: 'FREQ_YEARLY', year: 2020, pos: 0 },
+        values: values
+      },
+      lag: lag
+    };
+
+    try {
+      // Fetch both transformations
+      const [pctResp, deltaResp] = await Promise.all([
+        fetch('/hello/pct', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(request)
+        }),
+        fetch('/hello/delta', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(request)
+        })
+      ]);
+
+      if (!pctResp.ok || !deltaResp.ok) throw new Error('HTTP error');
+
+      const pctData = await pctResp.json();
+      const deltaData = await deltaResp.json();
+
+      const pctValues = pctData.series.values;
+      const deltaValues = deltaData.series.values;
+
+      document.getElementById('transform-output').textContent =
+        `Percentage Change: [${pctValues.map(v => v?.toFixed(2) ?? 'null').join(', ')}]\nDifference:        [${deltaValues.map(v => v?.toFixed(2) ?? 'null').join(', ')}]`;
+
+      createTransformChart(values, pctValues, deltaValues);
+      document.getElementById('transform-result').classList.add('visible');
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  }
+
+  function createTransformChart(original, pct, delta) {
+    const ctx = document.getElementById('transform-chart');
+    if (charts.transform) charts.transform.destroy();
+
+    const labels = original.map((_, i) => `t${i+1}`);
+
+    charts.transform = new Chart(ctx, {
+      type: 'bar',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Percentage Change (%)',
+            data: pct,
+            backgroundColor: '#4f8ef7'
+          },
+          {
+            label: 'Difference',
+            data: delta,
+            backgroundColor: '#f97316'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false
+      }
+    });
+  }
+
+  function clearTransform() {
+    document.getElementById('transform-input').value = '';
+    document.getElementById('transform-result').classList.remove('visible');
+  }
+
+  // ═══ Exercise: HP Filter ═══
+  async function runHPFilter() {
+    const input = document.getElementById('hp-input').value;
+    const values = parseValues(input);
+    const lambda = parseInt(document.getElementById('hp-lambda').value);
+
+    if (values.length === 0) {
+      alert('Please enter valid numbers');
+      return;
+    }
+
+    const request = {
+      id: 'tutorial_hp',
+      series: {
+        start: { frequency: 'FREQ_QUARTERLY', year: 2020, pos: 0 },
+        values: values
+      },
+      lambda: lambda
+    };
+
+    try {
+      const resp = await fetch('/hello/hodrickPrescott', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(request)
+      });
+
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+
+      const data = await resp.json();
+      const trend = data.trend.values;
+      const cycle = data.noise.values;
+
+      document.getElementById('hp-output').textContent =
+        `Original: [${values.map(v => v.toFixed(1)).join(', ')}]\nTrend:    [${trend.map(v => v.toFixed(2)).join(', ')}]\nCycle:    [${cycle.map(v => v.toFixed(2)).join(', ')}]`;
+
+      createHPChart(values, trend, cycle);
+      document.getElementById('hp-result').classList.add('visible');
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  }
+
+  function createHPChart(original, trend, cycle) {
+    const ctx = document.getElementById('hp-chart');
+    if (charts.hp) charts.hp.destroy();
+
+    const labels = original.map((_, i) => `t${i+1}`);
+
+    charts.hp = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: labels,
+        datasets: [
+          {
+            label: 'Original',
+            data: original,
+            borderColor: '#4f8ef7',
+            borderWidth: 2
+          },
+          {
+            label: 'Trend',
+            data: trend,
+            borderColor: '#f97316',
+            borderWidth: 3
+          },
+          {
+            label: 'Cycle',
+            data: cycle,
+            borderColor: '#22d3a5',
+            borderDash: [5, 5],
+            yAxisID: 'y1'
+          }
+        ]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          y: { position: 'left' },
+          y1: { position: 'right', grid: { drawOnChartArea: false } }
+        }
+      }
+    });
+  }
+
+  function clearHP() {
+    document.getElementById('hp-input').value = '';
+    document.getElementById('hp-result').classList.remove('visible');
+  }
+
+  // ═══ Initialize ═══
+  document.addEventListener('DOMContentLoaded', function() {
+    showLesson(1);
+  });
+</script>
+</body>
+</html>
+

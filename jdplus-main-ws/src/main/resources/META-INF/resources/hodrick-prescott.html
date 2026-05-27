@@ -1,0 +1,642 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Hodrick–Prescott Filter · JDemetra+ v3</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:        #0f1117;
+      --surface:   #1a1d27;
+      --border:    #2a2d3a;
+      --accent:    #4f8ef7;
+      --trend:     #f97316;
+      --cycle:     #22d3a5;
+      --text:      #e2e6f0;
+      --muted:     #8892aa;
+      --radius:    10px;
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 32px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    header svg { flex-shrink: 0; }
+    header .brand { font-size: 1.1rem; font-weight: 700; letter-spacing: .01em; }
+    header .brand span { color: var(--accent); }
+    header .badge {
+      margin-left: auto;
+      font-size: .72rem;
+      background: #f9731620;
+      color: var(--trend);
+      border: 1px solid #f9731640;
+      border-radius: 20px;
+      padding: 3px 10px;
+    }
+
+    /* ── Hero ── */
+    .hero {
+      padding: 36px 32px 20px;
+      max-width: 960px;
+      width: 100%;
+      margin: 0 auto;
+    }
+    .hero h1 { font-size: 1.75rem; font-weight: 800; line-height: 1.25; }
+    .hero h1 span { color: var(--accent); }
+    .hero p  { margin-top: 8px; color: var(--muted); line-height: 1.6; font-size: .95rem; }
+
+    /* ── Main layout ── */
+    main {
+      flex: 1;
+      max-width: 960px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 0 32px 48px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* ── Panel ── */
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+    }
+    .panel-title {
+      font-size: .72rem;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+
+    /* ── Controls ── */
+    .controls-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 24px;
+      align-items: end;
+    }
+    @media (max-width: 640px) {
+      .controls-grid { grid-template-columns: 1fr; }
+    }
+
+    label { display: block; font-size: .82rem; color: var(--muted); margin-bottom: 6px; }
+
+    select, input[type="number"] {
+      width: 100%;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      padding: 8px 10px;
+      font-size: .9rem;
+      appearance: none;
+    }
+    select:focus, input[type="number"]:focus { outline: 2px solid var(--accent); border-color: transparent; }
+
+    .lambda-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    input[type="range"] {
+      flex: 1;
+      accent-color: var(--accent);
+      cursor: pointer;
+    }
+    .lambda-value {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 6px 10px;
+      font-size: .9rem;
+      font-variant-numeric: tabular-nums;
+      min-width: 72px;
+      text-align: right;
+    }
+
+    .presets { display: flex; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+    .preset-btn {
+      font-size: .75rem;
+      padding: 4px 10px;
+      border-radius: 99px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .preset-btn:hover, .preset-btn.active {
+      background: var(--accent);
+      border-color: var(--accent);
+      color: #fff;
+    }
+
+    /* ── Run button ── */
+    .run-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      width: 100%;
+      padding: 11px;
+      background: var(--accent);
+      color: #fff;
+      font-size: .95rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background .15s, transform .1s;
+    }
+    .run-btn:hover { background: #3a7ae0; }
+    .run-btn:active { transform: scale(.97); }
+    .run-btn:disabled { background: #2a3a5a; color: var(--muted); cursor: not-allowed; }
+
+    /* ── Chart area ── */
+    .chart-wrapper { position: relative; height: 360px; }
+
+    /* ── Legend ── */
+    .legend {
+      display: flex;
+      gap: 20px;
+      flex-wrap: wrap;
+      font-size: .82rem;
+    }
+    .legend-item { display: flex; align-items: center; gap: 6px; }
+    .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+
+    /* ── Stats strip ── */
+    .stats-strip {
+      display: grid;
+      grid-template-columns: repeat(4, 1fr);
+      gap: 12px;
+    }
+    @media (max-width: 640px) { .stats-strip { grid-template-columns: 1fr 1fr; } }
+    .stat-card {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      padding: 12px 14px;
+    }
+    .stat-card .stat-label { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+    .stat-card .stat-val   { font-size: 1.25rem; font-weight: 700; margin-top: 2px; font-variant-numeric: tabular-nums; }
+
+    /* ── JSON drawer ── */
+    .json-toggle {
+      background: transparent;
+      border: none;
+      color: var(--accent);
+      font-size: .82rem;
+      cursor: pointer;
+      padding: 0;
+      text-align: left;
+      display: flex;
+      align-items: center;
+      gap: 5px;
+    }
+    .json-toggle:hover { text-decoration: underline; }
+    .json-block {
+      display: none;
+      margin-top: 10px;
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 14px;
+      font-size: .78rem;
+      font-family: 'Cascadia Code', 'JetBrains Mono', 'Fira Code', monospace;
+      color: #a8d8a8;
+      white-space: pre;
+      overflow-x: auto;
+      max-height: 280px;
+    }
+    .json-block.open { display: block; }
+
+    /* ── Error banner ── */
+    .error-banner {
+      display: none;
+      background: #3f1515;
+      border: 1px solid #7f2020;
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: .88rem;
+      color: #f87171;
+    }
+    .error-banner.visible { display: block; }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      padding: 16px;
+      font-size: .75rem;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+    }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<header>
+  <!-- Simple chart icon -->
+  <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+    <rect width="28" height="28" rx="7" fill="#4f8ef720"/>
+    <polyline points="4,22 9,14 13,17 17,8 24,6" stroke="#4f8ef7" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" fill="none"/>
+  </svg>
+  <div>
+    <div class="brand"><span>JDemetra+</span> v3 · Web Service</div>
+  </div>
+  <div class="badge">REST API Demo</div>
+</header>
+
+<div class="hero">
+  <h1>Hodrick–Prescott <span>Filter</span></h1>
+  <p>
+    The HP filter decomposes any time series into a smooth <strong>trend</strong> and a
+    short-term <strong>cycle</strong> component. Adjust λ to control smoothness —
+    a higher λ penalises trend curvature more, producing a flatter trend and a
+    larger cycle. This page calls <code>POST /hello/hodrickPrescott</code> live.
+  </p>
+</div>
+
+<main>
+
+  <!-- ── Controls ── -->
+  <div class="panel">
+    <div class="panel-title">Input parameters</div>
+    <div class="controls-grid">
+
+      <div>
+        <label for="freq-select">Frequency</label>
+        <select id="freq-select">
+          <option value="FREQ_YEARLY"      data-lambda="100">Yearly</option>
+          <option value="FREQ_HALF_YEARLY" data-lambda="400">Half-yearly</option>
+          <option value="FREQ_QUARTERLY"   data-lambda="1600" selected>Quarterly</option>
+          <option value="FREQ_MONTHLY"     data-lambda="14400">Monthly</option>
+        </select>
+      </div>
+
+      <div>
+        <label>Smoothing parameter λ</label>
+        <div class="lambda-row">
+          <input type="range" id="lambda-slider" min="1" max="6" step="0.01" value="3.204" />
+          <span class="lambda-value" id="lambda-display">1 600</span>
+        </div>
+        <div class="presets">
+          <button class="preset-btn" data-log="2">100</button>
+          <button class="preset-btn" data-log="2.602">400</button>
+          <button class="preset-btn active" data-log="3.204">1 600</button>
+          <button class="preset-btn" data-log="4.158">14 400</button>
+          <button class="preset-btn" data-log="5">100 000</button>
+        </div>
+      </div>
+
+      <div>
+        <label>&nbsp;</label>
+        <button class="run-btn" id="run-btn">
+          <svg width="16" height="16" fill="none" viewBox="0 0 16 16">
+            <path d="M4 2.5l9 5.5-9 5.5V2.5z" fill="currentColor"/>
+          </svg>
+          Run HP Filter
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Error ── -->
+  <div class="error-banner" id="error-banner"></div>
+
+  <!-- ── Chart ── -->
+  <div class="panel">
+    <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center">
+      <span>Decomposition</span>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#4f8ef7"></div>Original series</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--trend)"></div>Trend (HP)</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--cycle)"></div>Noise (right axis)</div>
+      </div>
+    </div>
+    <div class="chart-wrapper">
+      <canvas id="hp-chart"></canvas>
+    </div>
+  </div>
+
+  <!-- ── Stats ── -->
+  <div class="panel">
+    <div class="panel-title">Summary statistics</div>
+    <div class="stats-strip">
+      <div class="stat-card">
+        <div class="stat-label">Observations</div>
+        <div class="stat-val" id="stat-n">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">λ applied</div>
+        <div class="stat-val" id="stat-lambda">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Noise amplitude</div>
+        <div class="stat-val" id="stat-amp">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Trend range</div>
+        <div class="stat-val" id="stat-trend">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── JSON details ── -->
+  <div class="panel">
+    <div class="panel-title">API transparency</div>
+    <div style="display:flex;gap:24px;flex-wrap:wrap">
+      <div>
+        <button class="json-toggle" onclick="toggleJson('req-json', this)">
+          <span>▶</span> Show request JSON
+        </button>
+        <pre class="json-block" id="req-json"></pre>
+      </div>
+      <div>
+        <button class="json-toggle" onclick="toggleJson('res-json', this)">
+          <span>▶</span> Show response JSON
+        </button>
+        <pre class="json-block" id="res-json"></pre>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  Powered by <a href="https://github.com/jdemetra/jdplus-main" target="_blank">JDemetra+ v3</a>
+  · <a href="tutorial.html">Tutorial</a>
+  · <a href="game.html">Game</a>
+  · <a href="aggregate.html">Aggregation</a>
+  · <a href="compare.html">Growth Rates</a>
+  · <a href="compose.html">Studio</a>
+  · <a href="playground.html">Workbench</a>
+  · <a href="dashboard.html">Dashboard</a>
+  · <a href="reference.html">API Reference</a>
+  · <a href="q/swagger-ui" target="_blank">Swagger UI</a>
+</footer>
+
+<script>
+  // ─── Deterministic demo data (quarterly, 2000Q1–2019Q4) ───────────────────
+  // LCG seeded PRNG for reproducible noise
+  function lcg(seed) {
+    let s = seed >>> 0;
+    return () => { s = Math.imul(1664525, s) + 1013904223 >>> 0; return s / 0x100000000; };
+  }
+
+  function buildDemoData() {
+    const rand = lcg(0xDEADBEEF);
+    const n = 80; // 20 years × 4 quarters
+    const vals = [];
+    for (let t = 0; t < n; t++) {
+      const trend    = 100 * Math.pow(1.005, t);                         // ~2 % annual growth
+      const cycle    = 3.8 * Math.sin(2 * Math.PI * t / 32);            // 8-year business cycle
+      const crisis   = -7  * Math.exp(-0.18 * Math.pow(t - 35, 2));     // 2008–09 crisis (t ≈ 33–39)
+      const rec2001  = -2  * Math.exp(-0.60 * Math.pow(t -  6, 2));     // 2001 mild recession
+      const noise    = (rand() - 0.5) * 1.8;
+      vals.push(+( trend + cycle + crisis + rec2001 + noise ).toFixed(3));
+    }
+    return vals;
+  }
+
+  const DEMO_VALUES = buildDemoData();
+
+  // ─── Label generator (driven by the API response's start period) ──────────
+  const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+
+  function generateLabels(start, count) {
+    const { frequency: freq, year, pos = 0 } = start;
+    return Array.from({ length: count }, (_, i) => {
+      const p = pos + i;
+      switch (freq) {
+        case 'FREQ_YEARLY':        return `${year + p}`;
+        case 'FREQ_HALF_YEARLY':   return `${year + Math.floor(p / 2)} H${p % 2 + 1}`;
+        case 'FREQ_QUADRI_MONTHLY':return `${year + Math.floor(p / 3)} T${p % 3 + 1}`;
+        case 'FREQ_QUARTERLY':     return `${year + Math.floor(p / 4)} Q${p % 4 + 1}`;
+        case 'FREQ_BI_MONTHLY':    return `${year + Math.floor(p / 6)} B${p % 6 + 1}`;
+        case 'FREQ_MONTHLY':       return `${MONTH_ABBR[p % 12]} ${year + Math.floor(p / 12)}`;
+        default:                   return `t${i}`;
+      }
+    });
+  }
+
+  // Initial labels (quarterly, matches DEMO_VALUES)
+  const INITIAL_LABELS = generateLabels(
+    { frequency: 'FREQ_QUARTERLY', year: 2000, pos: 0 },
+    DEMO_VALUES.length
+  );
+
+  // ─── Debounce helper ─────────────────────────────────────────────────────
+  function debounce(fn, ms) {
+    let timer;
+    const debounced = (...args) => { clearTimeout(timer); timer = setTimeout(() => fn(...args), ms); };
+    debounced.cancel  = () => clearTimeout(timer);
+    return debounced;
+  }
+  const debouncedRun = debounce(runFilter, 350);
+
+  // ─── Lambda slider (log scale) ────────────────────────────────────────────
+  const slider  = document.getElementById('lambda-slider');
+  const display = document.getElementById('lambda-display');
+
+  function sliderToLambda(v) { return Math.round(Math.pow(10, +v)); }
+
+  function updateDisplay() {
+    const val = sliderToLambda(slider.value);
+    display.textContent = val.toLocaleString();
+    // sync active preset button
+    document.querySelectorAll('.preset-btn').forEach(b => {
+      b.classList.toggle('active', +b.dataset.log === +slider.value);
+    });
+  }
+
+  slider.addEventListener('input', () => { updateDisplay(); debouncedRun(); });
+  updateDisplay();
+
+  document.querySelectorAll('.preset-btn').forEach(b => {
+    b.addEventListener('click', () => {
+      slider.value = b.dataset.log;
+      updateDisplay();
+      debouncedRun();
+    });
+  });
+
+  // Auto-set lambda when frequency changes
+  document.getElementById('freq-select').addEventListener('change', function () {
+    const lam = +this.options[this.selectedIndex].dataset.lambda;
+    slider.value = Math.log10(lam).toFixed(3);
+    updateDisplay();
+    debouncedRun();
+  });
+
+  // ─── Chart setup (persistent, updated on each run) ────────────────────────
+  const ctx = document.getElementById('hp-chart').getContext('2d');
+  let chart = new Chart(ctx, {
+    data: {
+      labels: INITIAL_LABELS,
+      datasets: [
+        {
+          type: 'line', label: 'Original', data: DEMO_VALUES,
+          borderColor: '#4f8ef7', borderWidth: 1.5, pointRadius: 0,
+          tension: 0.3, yAxisID: 'y'
+        },
+        {
+          type: 'line', label: 'Trend (HP)', data: [],
+          borderColor: '#f97316', borderWidth: 2.5, pointRadius: 0,
+          tension: 0.3, yAxisID: 'y'
+        },
+        {
+          type: 'line', label: 'Noise', data: [],
+          borderColor: '#22d3a5', borderWidth: 1.5, pointRadius: 0,
+          tension: 0.3, yAxisID: 'y2',
+          borderDash: [4, 3], fill: { target: 'origin', above: '#22d3a518', below: '#22d3a518' }
+        }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1a1d27',
+          borderColor: '#2a2d3a',
+          borderWidth: 1,
+          titleColor: '#e2e6f0',
+          bodyColor: '#8892aa',
+          callbacks: {
+            label: ctx => ` ${ctx.dataset.label}: ${ctx.parsed.y.toFixed(3)}`
+          }
+        }
+      },
+      scales: {
+        x: {
+          ticks: { color: '#8892aa', maxTicksLimit: 10, maxRotation: 0 },
+          grid:  { color: '#2a2d3a' }
+        },
+        y: {
+          type: 'linear', position: 'left',
+          ticks: { color: '#8892aa' },
+          grid:  { color: '#2a2d3a' }
+        },
+        y2: {
+          type: 'linear', position: 'right',
+          ticks: { color: '#22d3a5' },
+          grid:  { drawOnChartArea: false }
+        }
+      }
+    }
+  });
+
+  // ─── API call ─────────────────────────────────────────────────────────────
+  const runBtn      = document.getElementById('run-btn');
+  const errorBanner = document.getElementById('error-banner');
+
+  function buildRequest() {
+    const freq   = document.getElementById('freq-select').value;
+    const lambda = sliderToLambda(slider.value);
+    return {
+      id: 'demo',
+      series: {
+        start: { frequency: freq, year: 2000, pos: 0 },
+        values: DEMO_VALUES
+      },
+      lambda
+    };
+  }
+
+  async function runFilter() {
+    runBtn.disabled = true;
+    runBtn.textContent = 'Running…';
+    errorBanner.classList.remove('visible');
+
+    const req = buildRequest();
+    document.getElementById('req-json').textContent = JSON.stringify(req, null, 2);
+
+    try {
+      const resp = await fetch('/hello/hodrickPrescott', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(req)
+      });
+
+      if (!resp.ok) {
+        const txt = await resp.text();
+        throw new Error(`HTTP ${resp.status} – ${txt}`);
+      }
+
+      const data = await resp.json();
+      document.getElementById('res-json').textContent = JSON.stringify(data, null, 2);
+
+      const trend  = data.trend?.values  ?? [];
+      const noise  = data.noise?.values  ?? [];
+
+      // Rebuild x-axis labels from the response's actual start period
+      chart.data.labels            = generateLabels(data.trend.start, trend.length);
+      // Update chart datasets
+      chart.data.datasets[1].data = trend;
+      chart.data.datasets[2].data = noise;
+      chart.update('active');
+
+      // Stats
+      const cycleMin = Math.min(...noise), cycleMax = Math.max(...noise);
+      const trendMin = Math.min(...trend),  trendMax = Math.max(...trend);
+      document.getElementById('stat-n').textContent      = DEMO_VALUES.length;
+      document.getElementById('stat-lambda').textContent = req.lambda.toLocaleString();
+      document.getElementById('stat-amp').textContent    =
+        `${cycleMin.toFixed(1)} / ${cycleMax.toFixed(1)}`;
+      document.getElementById('stat-trend').textContent  =
+        `${trendMin.toFixed(1)} → ${trendMax.toFixed(1)}`;
+
+    } catch (err) {
+      errorBanner.textContent = `⚠ ${err.message}`;
+      errorBanner.classList.add('visible');
+    } finally {
+      runBtn.disabled = false;
+      runBtn.innerHTML = `
+        <svg width="16" height="16" fill="none" viewBox="0 0 16 16">
+          <path d="M4 2.5l9 5.5-9 5.5V2.5z" fill="currentColor"/>
+        </svg>
+        Run HP Filter`;
+    }
+  }
+
+  runBtn.addEventListener('click', () => { debouncedRun.cancel?.(); runFilter(); });
+
+  // ─── JSON drawer ──────────────────────────────────────────────────────────
+  function toggleJson(id, btn) {
+    const el = document.getElementById(id);
+    const open = el.classList.toggle('open');
+    btn.querySelector('span').textContent = open ? '▼' : '▶';
+  }
+
+  // ─── Auto-run on load ─────────────────────────────────────────────────────
+  window.addEventListener('load', runFilter);
+</script>
+</body>
+</html>
+

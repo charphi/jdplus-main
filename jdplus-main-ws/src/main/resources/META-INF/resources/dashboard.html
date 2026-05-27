@@ -1,0 +1,463 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Multi-Series Dashboard · JDemetra+ v3</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f1117; --surface: #1a1d27; --border: #2a2d3a;
+      --accent: #4f8ef7; --hi: #f97316; --lo: #22d3a5; --info: #8b5cf6;
+      --text: #e2e6f0; --muted: #8892aa; --radius: 10px;
+    }
+    body { font-family: system-ui,-apple-system,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; display:flex; flex-direction:column; }
+
+    header { background:var(--surface); border-bottom:1px solid var(--border); padding:14px 32px; display:flex; align-items:center; gap:14px; }
+    header .brand { font-size:1.1rem; font-weight:700; } header .brand span { color:var(--accent); }
+    header .badge { margin-left:auto; font-size:.72rem; background:#4f8ef720; color:var(--accent); border:1px solid #4f8ef740; border-radius:20px; padding:3px 10px; }
+
+    .hero { padding:36px 32px 20px; max-width:1100px; width:100%; margin:0 auto; }
+    .hero h1 { font-size:1.75rem; font-weight:800; } .hero h1 span { color:var(--accent); }
+    .hero p { margin-top:8px; color:var(--muted); line-height:1.6; font-size:.95rem; }
+
+    main { flex:1; max-width:1100px; width:100%; margin:0 auto; padding:0 32px 48px; display:flex; flex-direction:column; gap:20px; }
+
+    .panel { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:20px 24px; }
+    .panel-title { font-size:.72rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:14px; }
+
+    /* ── Controls ── */
+    .controls-row { display:flex; gap:16px; align-items:flex-end; flex-wrap:wrap; }
+    label { display:block; font-size:.82rem; color:var(--muted); margin-bottom:5px; }
+    select { background:var(--bg); border:1px solid var(--border); border-radius:6px; color:var(--text); padding:8px 10px; font-size:.88rem; appearance:none; }
+    select:focus { outline:2px solid var(--accent); }
+
+    .run-btn { display:flex; align-items:center; gap:7px; padding:10px 20px; background:var(--accent); color:#fff; font-size:.9rem; font-weight:700; border:none; border-radius:8px; cursor:pointer; transition:background .15s; }
+    .run-btn:hover { background:#3a7ae0; }
+    .run-btn:disabled { background:#2a3a5a; color:var(--muted); cursor:not-allowed; }
+
+    /* ── Legend pills ── */
+    .legend-row { display:flex; gap:10px; flex-wrap:wrap; margin-bottom:14px; }
+    .legend-pill { display:flex; align-items:center; gap:7px; padding:4px 12px; border-radius:20px; border:1px solid; font-size:.78rem; font-weight:500; cursor:pointer; transition:opacity .15s; }
+    .legend-pill.muted { opacity:.35; }
+    .legend-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+
+    /* ── Overlay chart ── */
+    .chart-wrapper { position:relative; height:340px; }
+
+    /* ── Series cards ── */
+    .series-cards { display:grid; grid-template-columns:repeat(auto-fill,minmax(200px,1fr)); gap:12px; }
+    .series-card { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:14px 16px; }
+    .series-card .sc-title { font-size:.82rem; font-weight:600; margin-bottom:10px; display:flex; align-items:center; gap:7px; }
+    .sc-dot { width:10px; height:10px; border-radius:50%; flex-shrink:0; }
+    .sc-stat { display:flex; justify-content:space-between; font-size:.78rem; padding:3px 0; border-bottom:1px solid var(--border); color:var(--muted); }
+    .sc-stat:last-child { border-bottom:none; }
+    .sc-stat strong { color:var(--text); }
+    .sc-gap { font-size:.72rem; color:var(--hi); margin-top:8px; }
+
+    /* ── Matrix view ── */
+    .matrix-scroll { overflow-x:auto; margin-top:4px; }
+    table.matrix-table { border-collapse:collapse; font-size:.78rem; font-family:'Cascadia Code','JetBrains Mono',monospace; }
+    .matrix-table th { background:var(--surface); color:var(--muted); padding:6px 12px; text-align:center; border:1px solid var(--border); font-weight:600; }
+    .matrix-table td { padding:5px 10px; text-align:right; border:1px solid var(--border); font-variant-numeric:tabular-nums; }
+    .matrix-table td.present { color:var(--text); }
+    .matrix-table td.missing { color:var(--hi); opacity:.5; font-style:italic; }
+    .matrix-table td.period  { color:var(--muted); text-align:left; }
+
+    /* ── JSON drawer ── */
+    .json-toggle { background:transparent; border:none; color:var(--accent); font-size:.82rem; cursor:pointer; padding:0; display:flex; align-items:center; gap:5px; }
+    .json-block { display:none; margin-top:10px; background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:14px; font-size:.78rem; font-family:'Cascadia Code','JetBrains Mono',monospace; color:#a8d8a8; white-space:pre; overflow-x:auto; max-height:280px; }
+    .json-block.open { display:block; }
+
+    .error-banner { display:none; background:#3f1515; border:1px solid #7f2020; border-radius:8px; padding:12px 16px; font-size:.88rem; color:#f87171; }
+    .error-banner.visible { display:block; }
+
+    footer { text-align:center; padding:16px; font-size:.75rem; color:var(--muted); border-top:1px solid var(--border); }
+    footer a { color:var(--accent); text-decoration:none; }
+    footer a:hover { text-decoration:underline; }
+  </style>
+</head>
+<body>
+
+<header>
+  <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+    <rect width="28" height="28" rx="7" fill="#4f8ef720"/>
+    <polyline points="4,20 8,14 12,16 16,8 20,12 24,6" stroke="#4f8ef7" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" fill="none"/>
+    <polyline points="4,22 8,18 12,20 16,14 20,17 24,11" stroke="#22d3a5" stroke-width="1.8" stroke-linejoin="round" stroke-linecap="round" fill="none"/>
+  </svg>
+  <div><div class="brand"><span>JDemetra+</span> v3 · Web Service</div></div>
+  <div class="badge">Multi-Series Dashboard</div>
+</header>
+
+<div class="hero">
+  <h1>Multi-Series <span>Alignment</span></h1>
+  <p>
+    Select a preset collection of series with different start dates and frequencies.
+    <code>POST /hello/buildTsDataTable</code> aligns them onto a common time axis.
+    The resulting matrix reveals <em style="color:var(--hi)">gaps</em> where series don't yet overlap
+    and lets you overlay all series on one synchronized chart.
+  </p>
+</div>
+
+<main>
+
+  <div class="panel">
+    <div class="panel-title">Dataset</div>
+    <div class="controls-row">
+      <div>
+        <label for="preset-sel">Preset collection</label>
+        <select id="preset-sel">
+          <option value="macro" selected>Macro indicators (GDP · Inflation · Unemployment)</option>
+          <option value="finance">Finance (Equities · Bonds · Commodities)</option>
+          <option value="mixed_freq">Mixed frequencies (Monthly + Quarterly + Yearly)</option>
+          <option value="offset_starts">Offset starts (series begin at different years)</option>
+        </select>
+      </div>
+      <div>
+        <label for="dist-sel">Distribution type</label>
+        <select id="dist-sel">
+          <option value="DIST_FIRST" selected>First</option>
+          <option value="DIST_LAST">Last</option>
+          <option value="DIST_MIDDLE">Middle</option>
+        </select>
+      </div>
+      <div>
+        <label>&nbsp;</label>
+        <button class="run-btn" id="run-btn">
+          <svg width="13" height="13" fill="none" viewBox="0 0 16 16"><path d="M4 2.5l9 5.5-9 5.5V2.5z" fill="currentColor"/></svg>
+          Align &amp; Display
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="error-banner" id="error-banner"></div>
+
+  <!-- Overlay chart -->
+  <div class="panel" id="chart-panel" style="display:none">
+    <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center">
+      <span>Aligned series (normalized to 100 at common start)</span>
+    </div>
+    <div class="legend-row" id="legend-row"></div>
+    <div class="chart-wrapper"><canvas id="main-chart"></canvas></div>
+  </div>
+
+  <!-- Individual stat cards -->
+  <div class="panel" id="cards-panel" style="display:none">
+    <div class="panel-title">Individual series statistics</div>
+    <div class="series-cards" id="series-cards"></div>
+  </div>
+
+  <!-- Matrix preview -->
+  <div class="panel" id="matrix-panel" style="display:none">
+    <div class="panel-title">Aligned matrix (first &amp; last 5 rows)</div>
+    <div class="matrix-scroll"><div id="matrix-table-root"></div></div>
+  </div>
+
+  <!-- JSON drawer -->
+  <div class="panel" id="json-panel" style="display:none">
+    <div class="panel-title">API transparency</div>
+    <div style="display:flex;gap:24px;flex-wrap:wrap">
+      <div>
+        <button class="json-toggle" onclick="toggleJson('req-json',this)"><span>▶</span> Request JSON</button>
+        <pre class="json-block" id="req-json"></pre>
+      </div>
+      <div>
+        <button class="json-toggle" onclick="toggleJson('res-json',this)"><span>▶</span> Response JSON (truncated)</button>
+        <pre class="json-block" id="res-json"></pre>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  Powered by <a href="https://github.com/jdemetra/jdplus-main" target="_blank">JDemetra+ v3</a>
+  · <a href="hodrick-prescott.html">HP Filter</a>
+  · <a href="playground.html">Workbench</a>
+  · <a href="compare.html">Growth Rates</a>
+  · <a href="reference.html">API Reference</a>
+  · <a href="q/swagger-ui" target="_blank">Swagger UI</a>
+</footer>
+
+<script>
+  // ── PRNG ────────────────────────────────────────────────────────────────────
+  function lcg(seed) {
+    let s = seed >>> 0;
+    return () => { s = Math.imul(1664525,s)+1013904223>>>0; return s/0x100000000; };
+  }
+
+  function makeSeries(seed, n, freq, startYear, startPos, trend, noise) {
+    const rand = lcg(seed);
+    const vals = [];
+    let base = 100;
+    for (let i = 0; i < n; i++) {
+      base *= (1 + trend);
+      vals.push(+(base + (rand()-0.5)*noise).toFixed(3));
+    }
+    return { start: { frequency: freq, year: startYear, pos: startPos }, values: vals };
+  }
+
+  // ── Presets ─────────────────────────────────────────────────────────────────
+  const PRESETS = {
+    macro: {
+      names: ['GDP (Quarterly)', 'Inflation (Monthly)', 'Unemployment (Quarterly)'],
+      colors: ['#4f8ef7', '#22d3a5', '#f97316'],
+      series: () => [
+        makeSeries(0x1111, 80, 'FREQ_QUARTERLY', 2000, 0, 0.005, 2),
+        makeSeries(0x2222, 240, 'FREQ_MONTHLY',   2000, 0, 0.002, 0.8),
+        makeSeries(0x3333, 80, 'FREQ_QUARTERLY', 2000, 0, -0.001, 1.5)
+      ]
+    },
+    finance: {
+      names: ['Equities', 'Bonds (inverse)', 'Commodities'],
+      colors: ['#4f8ef7', '#8b5cf6', '#f97316'],
+      series: () => [
+        makeSeries(0xAAAA, 240, 'FREQ_MONTHLY', 2004, 0,  0.008, 8),
+        makeSeries(0xBBBB, 240, 'FREQ_MONTHLY', 2004, 0, -0.002, 2),
+        makeSeries(0xCCCC, 240, 'FREQ_MONTHLY', 2004, 0,  0.004, 6)
+      ]
+    },
+    mixed_freq: {
+      names: ['Monthly indicator', 'Quarterly GDP', 'Annual survey'],
+      colors: ['#22d3a5', '#4f8ef7', '#f97316'],
+      series: () => [
+        makeSeries(0xD1D1, 120, 'FREQ_MONTHLY',   2010, 0, 0.004, 1.2),
+        makeSeries(0xD2D2,  40, 'FREQ_QUARTERLY', 2010, 0, 0.005, 2.0),
+        makeSeries(0xD3D3,  10, 'FREQ_YEARLY',    2010, 0, 0.020, 3.0)
+      ]
+    },
+    offset_starts: {
+      names: ['Series A (2000)', 'Series B (2005)', 'Series C (2010)', 'Series D (2015)'],
+      colors: ['#4f8ef7','#22d3a5','#f97316','#8b5cf6'],
+      series: () => [
+        makeSeries(0xF1F1, 100, 'FREQ_QUARTERLY', 2000, 0, 0.004, 2),
+        makeSeries(0xF2F2,  80, 'FREQ_QUARTERLY', 2005, 0, 0.003, 2),
+        makeSeries(0xF3F3,  60, 'FREQ_QUARTERLY', 2010, 0, 0.006, 2),
+        makeSeries(0xF4F4,  40, 'FREQ_QUARTERLY', 2015, 0, 0.005, 2)
+      ]
+    }
+  };
+
+  // ── Label generator ─────────────────────────────────────────────────────────
+  const MONTH = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function makeLabels(start, count) {
+    const { frequency: f, year, pos = 0 } = start;
+    return Array.from({ length: count }, (_, i) => {
+      const p = pos + i;
+      if (f === 'FREQ_YEARLY')    return `${year + p}`;
+      if (f === 'FREQ_QUARTERLY') return `${year + Math.floor(p/4)} Q${p%4+1}`;
+      if (f === 'FREQ_MONTHLY')   return `${MONTH[p%12]} ${year + Math.floor(p/12)}`;
+      return `t${i}`;
+    });
+  }
+
+  // ── Chart instance ───────────────────────────────────────────────────────────
+  let mainChart = null;
+  let visibleSeries = [];
+
+  function toggleJson(id, btn) {
+    const el = document.getElementById(id);
+    el.classList.toggle('open');
+    btn.querySelector('span').textContent = el.classList.contains('open') ? '▼' : '▶';
+  }
+
+  // ── Main run ────────────────────────────────────────────────────────────────
+  async function run() {
+    const errorBanner = document.getElementById('error-banner');
+    const runBtn = document.getElementById('run-btn');
+    errorBanner.classList.remove('visible');
+    runBtn.disabled = true; runBtn.textContent = 'Aligning…';
+
+    const key     = document.getElementById('preset-sel').value;
+    const distType = document.getElementById('dist-sel').value;
+    const preset  = PRESETS[key];
+    const seriesList = preset.series();
+
+    const req = { id: 'dashboard', distributionType: distType, collection: seriesList };
+
+    document.getElementById('req-json').textContent = JSON.stringify(req, null, 2);
+
+    try {
+      const resp = await fetch('/hello/buildTsDataTable', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(req)
+      });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status} – ${await resp.text()}`);
+      const data = await resp.json();
+
+      // Truncate response for display
+      const truncated = JSON.parse(JSON.stringify(data));
+      if (truncated.matrix?.values?.length > 40) {
+        truncated.matrix.values = truncated.matrix.values.slice(0, 40);
+        truncated._note = '(values truncated for display)';
+      }
+      document.getElementById('res-json').textContent = JSON.stringify(truncated, null, 2);
+
+      renderResults(data, preset, seriesList);
+
+    } catch(err) {
+      errorBanner.textContent = `⚠ ${err.message}`;
+      errorBanner.classList.add('visible');
+    } finally {
+      runBtn.disabled = false;
+      runBtn.innerHTML = '<svg width="13" height="13" fill="none" viewBox="0 0 16 16"><path d="M4 2.5l9 5.5-9 5.5V2.5z" fill="currentColor"/></svg> Align &amp; Display';
+    }
+  }
+
+  function renderResults(data, preset, origSeries) {
+    const { matrix, statuses } = data;
+    if (!matrix) return;
+
+    const nrows = matrix.nrows;
+    const ncols = matrix.ncols;
+    const vals  = matrix.values; // column-major: col0[0..nrows-1], col1[0..nrows-1], ...
+    const startPeriod = matrix.start;
+    const labels = makeLabels(startPeriod, nrows);
+
+    // Extract columns (series), normalize to 100 at first non-null value
+    const cols = [];
+    for (let c = 0; c < ncols; c++) {
+      const col = [];
+      for (let r = 0; r < nrows; r++) col.push(vals[c * nrows + r]);
+      cols.push(col);
+    }
+
+    // Status array: nrows × ncols, row-major? Let's check — proto says repeated ValueStatus statuses
+    // statuses length = nrows * ncols; organized same as matrix values (column-major per proto Matrix)
+    const statusGrid = []; // statusGrid[col][row]
+    if (statuses && statuses.length === nrows * ncols) {
+      for (let c = 0; c < ncols; c++) {
+        const col = [];
+        for (let r = 0; r < nrows; r++) col.push(statuses[c * nrows + r]);
+        statusGrid.push(col);
+      }
+    }
+
+    visibleSeries = preset.names.map(() => true);
+
+    // ── Legend ──
+    const legendRow = document.getElementById('legend-row');
+    legendRow.innerHTML = '';
+    preset.names.forEach((name, i) => {
+      const pill = document.createElement('div');
+      pill.className = 'legend-pill';
+      pill.style.borderColor = preset.colors[i] + '60';
+      pill.style.background  = preset.colors[i] + '18';
+      pill.style.color       = preset.colors[i];
+      pill.innerHTML = `<div class="legend-dot" style="background:${preset.colors[i]}"></div>${name}`;
+      pill.addEventListener('click', () => {
+        visibleSeries[i] = !visibleSeries[i];
+        pill.classList.toggle('muted', !visibleSeries[i]);
+        if (mainChart) {
+          mainChart.data.datasets[i].hidden = !visibleSeries[i];
+          mainChart.update();
+        }
+      });
+      legendRow.appendChild(pill);
+    });
+
+    // ── Normalize columns to 100 at first present value ──
+    const normCols = cols.map(col => {
+      const anchor = col.find(v => v != null && !isNaN(v));
+      if (!anchor || anchor === 0) return col;
+      return col.map(v => v == null ? null : +(v / anchor * 100).toFixed(3));
+    });
+
+    // ── Main chart ──
+    const datasets = normCols.map((col, i) => ({
+      label: preset.names[i],
+      data: col.map(v => v == null || isNaN(v) ? null : v),
+      borderColor: preset.colors[i],
+      borderWidth: 2,
+      pointRadius: 0,
+      tension: 0.3,
+      spanGaps: false
+    }));
+
+    if (mainChart) mainChart.destroy();
+    mainChart = new Chart(document.getElementById('main-chart'), {
+      type: 'line',
+      data: { labels, datasets },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor:'#1a1d27', borderColor:'#2a2d3a', borderWidth:1,
+            titleColor:'#e2e6f0', bodyColor:'#8892aa',
+            callbacks: { label: c => c.parsed.y == null ? null : ` ${c.dataset.label}: ${c.parsed.y.toFixed(2)}` }
+          }
+        },
+        scales: {
+          x: { ticks:{color:'#8892aa',maxTicksLimit:12,maxRotation:0}, grid:{color:'#2a2d3a'} },
+          y: { ticks:{color:'#8892aa', callback: v => v + ''}, grid:{color:'#2a2d3a'} }
+        }
+      }
+    });
+
+    // ── Series stat cards ──
+    const cardsRoot = document.getElementById('series-cards');
+    cardsRoot.innerHTML = '';
+    cols.forEach((col, i) => {
+      const present = col.filter(v => v != null && !isNaN(v));
+      const missing = col.length - present.length;
+      const mn = present.length ? (present.reduce((a,b)=>a+b,0)/present.length).toFixed(2) : '—';
+      const mi = present.length ? Math.min(...present).toFixed(2) : '—';
+      const mx = present.length ? Math.max(...present).toFixed(2) : '—';
+      const origN = origSeries[i].values.length;
+
+      const card = document.createElement('div');
+      card.className = 'series-card';
+      card.innerHTML = `
+        <div class="sc-title"><div class="sc-dot" style="background:${preset.colors[i]}"></div>${preset.names[i]}</div>
+        <div class="sc-stat"><span>Original obs.</span><strong>${origN}</strong></div>
+        <div class="sc-stat"><span>In matrix</span><strong>${present.length}</strong></div>
+        <div class="sc-stat"><span>Mean</span><strong>${mn}</strong></div>
+        <div class="sc-stat"><span>Min→Max</span><strong>${mi} → ${mx}</strong></div>
+        ${missing > 0 ? `<div class="sc-gap">⚠ ${missing} gap${missing>1?'s':''} in aligned window</div>` : ''}`;
+      cardsRoot.appendChild(card);
+    });
+
+    // ── Matrix table (first 5 + last 5 rows) ──
+    const tableRoot = document.getElementById('matrix-table-root');
+    const rowsToShow = nrows <= 12
+      ? [...Array(nrows).keys()]
+      : [...Array(5).keys(), null, ...Array.from({length:5},(_,k)=>nrows-5+k)];
+
+    let html = '<table class="matrix-table"><thead><tr><th>Period</th>';
+    preset.names.forEach(n => { html += `<th>${n}</th>`; });
+    html += '</tr></thead><tbody>';
+
+    rowsToShow.forEach(r => {
+      if (r === null) {
+        html += `<tr><td class="period" colspan="${ncols+1}" style="text-align:center;color:var(--muted)">⋯</td></tr>`;
+        return;
+      }
+      html += `<tr><td class="period">${labels[r]}</td>`;
+      for (let c = 0; c < ncols; c++) {
+        const v = cols[c][r];
+        const st = statusGrid[c]?.[r];
+        const isPresent = (v != null && !isNaN(v) && st !== 'VS_BEFORE' && st !== 'VS_AFTER' && st !== 'VS_EMPTY');
+        html += isPresent
+          ? `<td class="present">${(+v).toFixed(2)}</td>`
+          : `<td class="missing">—</td>`;
+      }
+      html += '</tr>';
+    });
+    html += '</tbody></table>';
+    tableRoot.innerHTML = html;
+
+    // Show panels
+    ['chart-panel','cards-panel','matrix-panel','json-panel'].forEach(id => {
+      document.getElementById(id).style.display = '';
+    });
+  }
+
+  document.getElementById('run-btn').addEventListener('click', run);
+  window.addEventListener('load', run);
+</script>
+</body>
+</html>
+

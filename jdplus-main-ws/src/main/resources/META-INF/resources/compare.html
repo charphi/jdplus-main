@@ -1,0 +1,359 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Growth Rate Analyzer · JDemetra+ v3</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f1117; --surface: #1a1d27; --border: #2a2d3a;
+      --accent: #4f8ef7; --hi: #f97316; --lo: #22d3a5; --info: #8b5cf6;
+      --text: #e2e6f0; --muted: #8892aa; --radius: 10px;
+    }
+    body { font-family: system-ui,-apple-system,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; display:flex; flex-direction:column; }
+
+    header { background:var(--surface); border-bottom:1px solid var(--border); padding:14px 32px; display:flex; align-items:center; gap:14px; }
+    header .brand { font-size:1.1rem; font-weight:700; }
+    header .brand span { color:var(--accent); }
+    header .badge { margin-left:auto; font-size:.72rem; background:#8b5cf620; color:var(--info); border:1px solid #8b5cf640; border-radius:20px; padding:3px 10px; }
+
+    .hero { padding:36px 32px 20px; max-width:1000px; width:100%; margin:0 auto; }
+    .hero h1 { font-size:1.75rem; font-weight:800; }
+    .hero h1 span { color:var(--accent); }
+    .hero p { margin-top:8px; color:var(--muted); line-height:1.6; font-size:.95rem; }
+
+    main { flex:1; max-width:1000px; width:100%; margin:0 auto; padding:0 32px 48px; display:flex; flex-direction:column; gap:20px; }
+
+    .panel { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:20px 24px; }
+    .panel-title { font-size:.72rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:14px; }
+    .panel-heading { font-size:1rem; font-weight:700; margin-bottom:12px; }
+
+    .controls-row { display:flex; gap:16px; align-items:flex-end; flex-wrap:wrap; }
+    label { display:block; font-size:.82rem; color:var(--muted); margin-bottom:6px; }
+    select { background:var(--bg); border:1px solid var(--border); border-radius:6px; color:var(--text); padding:8px 10px; font-size:.9rem; appearance:none; }
+    select:focus { outline:2px solid var(--accent); border-color:transparent; }
+
+    .run-btn { display:flex; align-items:center; justify-content:center; gap:8px; padding:10px 20px; background:var(--accent); color:#fff; font-size:.9rem; font-weight:600; border:none; border-radius:8px; cursor:pointer; transition:background .15s; white-space:nowrap; }
+    .run-btn:hover { background:#3a7ae0; }
+    .run-btn:disabled { background:#2a3a5a; color:var(--muted); cursor:not-allowed; }
+
+    .charts-grid { display:grid; grid-template-columns:1fr 1fr; gap:20px; }
+    @media(max-width:700px) { .charts-grid { grid-template-columns:1fr; } }
+    .chart-wrapper { position:relative; height:260px; }
+
+    .stats-strip { display:grid; grid-template-columns:repeat(4,1fr); gap:12px; }
+    @media(max-width:640px) { .stats-strip { grid-template-columns:1fr 1fr; } }
+    .stat-card { background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:12px 14px; }
+    .stat-card .stat-label { font-size:.72rem; color:var(--muted); text-transform:uppercase; letter-spacing:.06em; }
+    .stat-card .stat-val { font-size:1.2rem; font-weight:700; margin-top:2px; font-variant-numeric:tabular-nums; }
+
+    .recession-note { font-size:.8rem; color:var(--muted); margin-top:8px; }
+    .recession-note span { color:var(--hi); }
+
+    .json-toggle { background:transparent; border:none; color:var(--accent); font-size:.82rem; cursor:pointer; padding:0; display:flex; align-items:center; gap:5px; }
+    .json-block { display:none; margin-top:10px; background:var(--bg); border:1px solid var(--border); border-radius:6px; padding:14px; font-size:.78rem; font-family:'Cascadia Code','JetBrains Mono',monospace; color:#a8d8a8; white-space:pre; overflow-x:auto; max-height:260px; }
+    .json-block.open { display:block; }
+
+    .error-banner { display:none; background:#3f1515; border:1px solid #7f2020; border-radius:8px; padding:12px 16px; font-size:.88rem; color:#f87171; }
+    .error-banner.visible { display:block; }
+
+    footer { text-align:center; padding:16px; font-size:.75rem; color:var(--muted); border-top:1px solid var(--border); }
+    footer a { color:var(--accent); text-decoration:none; }
+    footer a:hover { text-decoration:underline; }
+
+    /* annotation layer */
+    .recession-label { position:absolute; top:4px; font-size:.68rem; color:#f9731680; border-left:1px dashed #f9731650; padding-left:4px; pointer-events:none; }
+  </style>
+</head>
+<body>
+
+<header>
+  <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+    <rect width="28" height="28" rx="7" fill="#8b5cf620"/>
+    <polyline points="4,20 9,8 14,16 19,4 24,12" stroke="#8b5cf6" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" fill="none"/>
+  </svg>
+  <div><div class="brand"><span>JDemetra+</span> v3 · Web Service</div></div>
+  <div class="badge">Growth Rate Analyzer</div>
+</header>
+
+<div class="hero">
+  <h1>QoQ vs YoY <span>Growth Rates</span></h1>
+  <p>
+    Compare <strong>quarter-on-quarter</strong> (lag&nbsp;1) and <strong>year-on-year</strong> (lag&nbsp;4)
+    percentage changes side by side. The same series is sent twice to
+    <code>POST /hello/pct</code> with different lags. Bars turning <em style="color:var(--hi)">orange</em>
+    highlight periods where both measures are negative (recession signal).
+  </p>
+</div>
+
+<main>
+
+  <div class="panel">
+    <div class="panel-title">Settings</div>
+    <div class="controls-row">
+      <div>
+        <label for="freq-sel">Frequency</label>
+        <select id="freq-sel">
+          <option value="FREQ_QUARTERLY" data-lag="4" selected>Quarterly (lag 4 → YoY)</option>
+          <option value="FREQ_MONTHLY"   data-lag="12">Monthly (lag 12 → YoY)</option>
+        </select>
+      </div>
+      <div>
+        <label for="series-sel">Dataset</label>
+        <select id="series-sel">
+          <option value="gdp" selected>Synthetic GDP</option>
+          <option value="industrial">Industrial output</option>
+          <option value="volatile">Volatile series</option>
+        </select>
+      </div>
+      <div>
+        <label>&nbsp;</label>
+        <button class="run-btn" id="run-btn">
+          <svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M4 2.5l9 5.5-9 5.5V2.5z" fill="currentColor"/></svg>
+          Compute
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <div class="error-banner" id="error-banner"></div>
+
+  <!-- original series -->
+  <div class="panel">
+    <div class="panel-title">Original series</div>
+    <div class="chart-wrapper"><canvas id="chart-orig"></canvas></div>
+  </div>
+
+  <!-- two growth rate charts -->
+  <div class="charts-grid">
+    <div class="panel">
+      <div class="panel-heading">Quarter-on-Quarter &nbsp;<small style="color:var(--muted);font-weight:400">(lag 1)</small></div>
+      <div class="chart-wrapper"><canvas id="chart-qoq"></canvas></div>
+    </div>
+    <div class="panel">
+      <div class="panel-heading" id="yoy-title">Year-on-Year &nbsp;<small style="color:var(--muted);font-weight:400">(lag 4)</small></div>
+      <div class="chart-wrapper"><canvas id="chart-yoy"></canvas></div>
+    </div>
+  </div>
+
+  <!-- stats strip -->
+  <div class="panel">
+    <div class="panel-title">Summary</div>
+    <div class="stats-strip">
+      <div class="stat-card"><div class="stat-label">QoQ avg</div><div class="stat-val" id="s-qoq-avg">—</div></div>
+      <div class="stat-card"><div class="stat-label">YoY avg</div><div class="stat-val" id="s-yoy-avg">—</div></div>
+      <div class="stat-card"><div class="stat-label">QoQ volatility (σ)</div><div class="stat-val" id="s-qoq-vol">—</div></div>
+      <div class="stat-card"><div class="stat-label">Neg. both (recession)</div><div class="stat-val" id="s-rec">—</div></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">API transparency</div>
+    <div style="display:flex;gap:24px;flex-wrap:wrap">
+      <div>
+        <button class="json-toggle" onclick="toggleJson('req-qoq',this)"><span>▶</span> QoQ request</button>
+        <pre class="json-block" id="req-qoq"></pre>
+      </div>
+      <div>
+        <button class="json-toggle" onclick="toggleJson('req-yoy',this)"><span>▶</span> YoY request</button>
+        <pre class="json-block" id="req-yoy"></pre>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  Powered by <a href="https://github.com/jdemetra/jdplus-main" target="_blank">JDemetra+ v3</a>
+  · <a href="hodrick-prescott.html">HP Filter</a>
+  · <a href="aggregate.html">Aggregation</a>
+  · <a href="tutorial.html">Tutorial</a>
+  · <a href="q/swagger-ui" target="_blank">Swagger UI</a>
+</footer>
+
+<script>
+  // ── Demo dataset generator ──────────────────────────────────────────────────
+  function lcg(seed) {
+    let s = seed >>> 0;
+    return () => { s = Math.imul(1664525,s)+1013904223>>>0; return s/0x100000000; };
+  }
+
+  const DATASETS = {
+    gdp: { seed: 0xDEAD, trend: 0.006, crisis: [{ t: 28, depth: -4, width: 6 }, { t: 40, depth: -8, width: 8 }] },
+    industrial: { seed: 0xBEEF, trend: 0.003, crisis: [{ t: 24, depth: -6, width: 5 }] },
+    volatile: { seed: 0xCAFE, trend: 0.002, crisis: [] }
+  };
+
+  function buildSeries(dsKey, freqKey) {
+    const ds = DATASETS[dsKey];
+    const rand = lcg(ds.seed);
+    const periods = freqKey === 'FREQ_MONTHLY' ? 12 : 4;
+    const n = periods * 20; // 20 years
+    const noiseScale = freqKey === 'FREQ_MONTHLY' ? 0.8 : (dsKey === 'volatile' ? 5 : 1.5);
+    const vals = [];
+    let base = 100;
+    for (let t = 0; t < n; t++) {
+      let shock = 0;
+      ds.crisis.forEach(c => {
+        const tp = c.t * (periods / 4);
+        shock += c.depth * Math.exp(-0.3 * Math.pow((t - tp) / (periods/4), 2));
+      });
+      base *= (1 + ds.trend / periods);
+      const noise = (rand() - 0.5) * noiseScale;
+      vals.push(+(base + shock + noise).toFixed(3));
+    }
+    return { start: { frequency: freqKey, year: 2000, pos: 0 }, values: vals };
+  }
+
+  // ── Label generator ─────────────────────────────────────────────────────────
+  const MONTH = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function makeLabels(start, count) {
+    const { frequency: f, year, pos = 0 } = start;
+    return Array.from({ length: count }, (_, i) => {
+      const p = pos + i;
+      if (f === 'FREQ_QUARTERLY') return `${year + Math.floor(p/4)} Q${p%4+1}`;
+      if (f === 'FREQ_MONTHLY')   return `${MONTH[p%12]} ${year + Math.floor(p/12)}`;
+      return `t${i}`;
+    });
+  }
+
+  // ── Chart factory ────────────────────────────────────────────────────────────
+  function makeBarChart(canvasId, color) {
+    return new Chart(document.getElementById(canvasId), {
+      type: 'bar',
+      data: { labels: [], datasets: [{ data: [], backgroundColor: [], borderWidth: 0 }] },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        plugins: { legend: { display: false }, tooltip: {
+          backgroundColor: '#1a1d27', borderColor: '#2a2d3a', borderWidth: 1,
+          titleColor: '#e2e6f0', bodyColor: '#8892aa',
+          callbacks: { label: c => ` ${c.parsed.y.toFixed(2)} %` }
+        }},
+        scales: {
+          x: { ticks: { color: '#8892aa', maxTicksLimit: 10, maxRotation: 0 }, grid: { color: '#2a2d3a' } },
+          y: { ticks: { color: '#8892aa', callback: v => v + '%' }, grid: { color: '#2a2d3a' } }
+        }
+      }
+    });
+  }
+
+  const chartOrig = new Chart(document.getElementById('chart-orig'), {
+    type: 'line',
+    data: { labels: [], datasets: [{ data: [], borderColor: '#4f8ef7', borderWidth: 1.5, pointRadius: 0, tension: 0.3 }] },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: '#8892aa', maxTicksLimit: 12, maxRotation: 0 }, grid: { color: '#2a2d3a' } },
+        y: { ticks: { color: '#8892aa' }, grid: { color: '#2a2d3a' } }
+      }
+    }
+  });
+
+  const chartQoQ = makeBarChart('chart-qoq', '#4f8ef7');
+  const chartYoY = makeBarChart('chart-yoy', '#22d3a5');
+
+  // ── Helpers ─────────────────────────────────────────────────────────────────
+  function colorBars(vals, positiveColor, negativeColor) {
+    return vals.map(v => (v === null) ? '#ffffff00' : (v < 0 ? negativeColor : positiveColor));
+  }
+
+  function stdev(arr) {
+    const clean = arr.filter(v => v !== null);
+    const m = clean.reduce((a,b) => a+b, 0) / clean.length;
+    return Math.sqrt(clean.reduce((s,v) => s + (v-m)**2, 0) / clean.length);
+  }
+
+  function avg(arr) {
+    const clean = arr.filter(v => v !== null);
+    return clean.reduce((a,b) => a+b, 0) / clean.length;
+  }
+
+  function toggleJson(id, btn) {
+    const el = document.getElementById(id);
+    el.classList.toggle('open');
+    btn.querySelector('span').textContent = el.classList.contains('open') ? '▼' : '▶';
+  }
+
+  // ── Main run ────────────────────────────────────────────────────────────────
+  async function run() {
+    const freqEl  = document.getElementById('freq-sel');
+    const freqKey = freqEl.value;
+    const yoyLag  = +freqEl.options[freqEl.selectedIndex].dataset.lag;
+    const dsKey   = document.getElementById('series-sel').value;
+
+    const errorBanner = document.getElementById('error-banner');
+    const runBtn = document.getElementById('run-btn');
+    errorBanner.classList.remove('visible');
+    runBtn.disabled = true; runBtn.textContent = 'Computing…';
+
+    const series = buildSeries(dsKey, freqKey);
+
+    const reqQoQ = { id: 'qoq', series, lag: 1 };
+    const reqYoY = { id: 'yoy', series, lag: yoyLag };
+
+    document.getElementById('req-qoq').textContent = JSON.stringify(reqQoQ, null, 2);
+    document.getElementById('req-yoy').textContent = JSON.stringify(reqYoY, null, 2);
+    document.getElementById('yoy-title').innerHTML =
+      `Year-on-Year &nbsp;<small style="color:var(--muted);font-weight:400">(lag ${yoyLag})</small>`;
+
+    try {
+      const [rQoQ, rYoY] = await Promise.all([
+        fetch('/hello/pct', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(reqQoQ) }),
+        fetch('/hello/pct', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(reqYoY) })
+      ]);
+      if (!rQoQ.ok || !rYoY.ok) throw new Error('API error');
+
+      const dQoQ = await rQoQ.json();
+      const dYoY = await rYoY.json();
+
+      const vQoQ = dQoQ.series.values;
+      const vYoY = dYoY.series.values;
+      const origVals = series.values;
+      const origLabels = makeLabels(series.start, origVals.length);
+
+      // original chart
+      chartOrig.data.labels = origLabels;
+      chartOrig.data.datasets[0].data = origVals;
+      chartOrig.update('active');
+
+      // QoQ chart — align to original labels (first `lag` values are null)
+      const qoqAligned = Array(origVals.length).fill(null);
+      vQoQ.forEach((v, i) => { qoqAligned[i + 1] = v; });
+      chartQoQ.data.labels = origLabels;
+      chartQoQ.data.datasets[0].data = qoqAligned;
+      chartQoQ.data.datasets[0].backgroundColor = colorBars(qoqAligned, '#4f8ef7aa', '#f97316aa');
+      chartQoQ.update('active');
+
+      // YoY chart
+      const yoyAligned = Array(origVals.length).fill(null);
+      vYoY.forEach((v, i) => { yoyAligned[i + yoyLag] = v; });
+      chartYoY.data.labels = origLabels;
+      chartYoY.data.datasets[0].data = yoyAligned;
+      chartYoY.data.datasets[0].backgroundColor = colorBars(yoyAligned, '#22d3a5aa', '#f97316aa');
+      chartYoY.update('active');
+
+      // stats
+      const recCount = qoqAligned.filter((v, i) => v !== null && v < 0 && yoyAligned[i] !== null && yoyAligned[i] < 0).length;
+      document.getElementById('s-qoq-avg').textContent = avg(vQoQ).toFixed(2) + '%';
+      document.getElementById('s-yoy-avg').textContent = avg(vYoY).toFixed(2) + '%';
+      document.getElementById('s-qoq-vol').textContent = stdev(vQoQ).toFixed(2) + 'pp';
+      document.getElementById('s-rec').textContent     = recCount + ' periods';
+
+    } catch(err) {
+      errorBanner.textContent = `⚠ ${err.message}`;
+      errorBanner.classList.add('visible');
+    } finally {
+      runBtn.disabled = false;
+      runBtn.innerHTML = '<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M4 2.5l9 5.5-9 5.5V2.5z" fill="currentColor"/></svg> Compute';
+    }
+  }
+
+  document.getElementById('run-btn').addEventListener('click', run);
+  window.addEventListener('load', run);
+</script>
+</body>
+</html>
+

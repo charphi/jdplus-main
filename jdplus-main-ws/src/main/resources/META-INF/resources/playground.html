@@ -1,0 +1,480 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Pipeline Workbench · JDemetra+ v3</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    :root {
+      --bg: #0f1117; --surface: #1a1d27; --border: #2a2d3a;
+      --accent: #4f8ef7; --hi: #f97316; --lo: #22d3a5; --info: #8b5cf6;
+      --text: #e2e6f0; --muted: #8892aa; --radius: 10px;
+    }
+    body { font-family: system-ui,-apple-system,sans-serif; background:var(--bg); color:var(--text); min-height:100vh; display:flex; flex-direction:column; }
+
+    header { background:var(--surface); border-bottom:1px solid var(--border); padding:14px 32px; display:flex; align-items:center; gap:14px; }
+    header .brand { font-size:1.1rem; font-weight:700; } header .brand span { color:var(--accent); }
+    header .badge { margin-left:auto; font-size:.72rem; background:#8b5cf620; color:var(--info); border:1px solid #8b5cf640; border-radius:20px; padding:3px 10px; }
+
+    .hero { padding:36px 32px 20px; max-width:1060px; width:100%; margin:0 auto; }
+    .hero h1 { font-size:1.75rem; font-weight:800; } .hero h1 span { color:var(--accent); }
+    .hero p { margin-top:8px; color:var(--muted); line-height:1.6; font-size:.95rem; }
+
+    main { flex:1; max-width:1060px; width:100%; margin:0 auto; padding:0 32px 48px; display:flex; flex-direction:column; gap:20px; }
+
+    .panel { background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:20px 24px; }
+    .panel-title { font-size:.72rem; font-weight:700; letter-spacing:.1em; text-transform:uppercase; color:var(--muted); margin-bottom:14px; }
+
+    /* ── Step 1: raw observations ── */
+    .obs-area { width:100%; background:var(--bg); border:1px solid var(--border); border-radius:6px; color:var(--text); padding:12px; font-size:.85rem; font-family:'Cascadia Code','JetBrains Mono',monospace; resize:vertical; min-height:160px; line-height:1.6; }
+    .obs-area:focus { outline:2px solid var(--accent); border-color:transparent; }
+
+    .obs-hint { font-size:.78rem; color:var(--muted); margin-top:8px; line-height:1.5; }
+    .obs-hint code { background:#2a2d3a; color:var(--lo); padding:1px 5px; border-radius:3px; }
+
+    .row-controls { display:flex; gap:12px; align-items:flex-end; flex-wrap:wrap; margin-top:14px; }
+    label { display:block; font-size:.82rem; color:var(--muted); margin-bottom:5px; }
+    select { background:var(--bg); border:1px solid var(--border); border-radius:6px; color:var(--text); padding:8px 10px; font-size:.88rem; appearance:none; }
+    select:focus { outline:2px solid var(--accent); }
+
+    .build-btn { display:flex; align-items:center; gap:7px; padding:10px 18px; background:var(--lo); color:#000; font-size:.88rem; font-weight:700; border:none; border-radius:8px; cursor:pointer; transition:background .15s; }
+    .build-btn:hover { background:#1cb893; }
+    .build-btn:disabled { background:#2a3a5a; color:var(--muted); cursor:not-allowed; }
+
+    /* ── Pipeline steps ── */
+    .pipeline { display:flex; flex-direction:column; gap:0; }
+    .pipeline-step { display:flex; align-items:stretch; }
+    .step-connector { display:flex; flex-direction:column; align-items:center; padding:0 14px; }
+    .step-connector .dot { width:14px; height:14px; border-radius:50%; background:var(--border); flex-shrink:0; margin-top:16px; transition:background .3s; }
+    .step-connector .dot.active { background:var(--accent); box-shadow:0 0 8px var(--accent); }
+    .step-connector .line { width:2px; flex:1; background:var(--border); margin:0 6px; transition:background .3s; }
+    .step-connector .line.active { background:var(--accent); }
+
+    .step-card { flex:1; margin:6px 0; background:var(--bg); border:1px solid var(--border); border-radius:8px; padding:14px 16px; min-height:100px; }
+    .step-card.active { border-color:var(--accent); }
+    .step-card.disabled { opacity:.45; pointer-events:none; }
+    .step-header { display:flex; align-items:center; gap:10px; margin-bottom:10px; }
+    .step-badge { font-size:.7rem; font-weight:700; padding:2px 8px; border-radius:4px; }
+    .step-title { font-size:.95rem; font-weight:600; }
+    .step-op-row { display:flex; gap:10px; align-items:center; flex-wrap:wrap; }
+    .step-op-row select { font-size:.82rem; }
+    .step-run-btn { display:flex; align-items:center; gap:6px; padding:7px 14px; background:var(--accent); color:#fff; font-size:.82rem; font-weight:600; border:none; border-radius:6px; cursor:pointer; transition:background .15s; }
+    .step-run-btn:hover { background:#3a7ae0; }
+    .step-run-btn:disabled { background:#2a3a5a; color:var(--muted); cursor:not-allowed; }
+
+    .chart-wrapper { position:relative; height:160px; margin-top:10px; }
+
+    .stat-row { display:flex; gap:12px; flex-wrap:wrap; margin-top:8px; font-size:.78rem; color:var(--muted); }
+    .stat-pill { background:var(--surface); border:1px solid var(--border); border-radius:20px; padding:3px 10px; }
+    .stat-pill strong { color:var(--text); }
+
+    .error-banner { display:none; background:#3f1515; border:1px solid #7f2020; border-radius:8px; padding:12px 16px; font-size:.88rem; color:#f87171; margin-bottom:12px; }
+    .error-banner.visible { display:block; }
+
+    footer { text-align:center; padding:16px; font-size:.75rem; color:var(--muted); border-top:1px solid var(--border); }
+    footer a { color:var(--accent); text-decoration:none; }
+    footer a:hover { text-decoration:underline; }
+  </style>
+</head>
+<body>
+
+<header>
+  <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+    <rect width="28" height="28" rx="7" fill="#8b5cf620"/>
+    <rect x="5" y="6"  width="6" height="6" rx="2" fill="#8b5cf6"/>
+    <rect x="11" y="11" width="6" height="6" rx="2" fill="#8b5cf6" opacity=".7"/>
+    <rect x="17" y="16" width="6" height="6" rx="2" fill="#8b5cf6" opacity=".4"/>
+    <line x1="11" y1="9" x2="14" y2="11" stroke="#8b5cf6" stroke-width="1.5"/>
+    <line x1="17" y1="14" x2="20" y2="16" stroke="#8b5cf6" stroke-width="1.5"/>
+  </svg>
+  <div><div class="brand"><span>JDemetra+</span> v3 · Web Service</div></div>
+  <div class="badge">Pipeline Workbench</div>
+</header>
+
+<div class="hero">
+  <h1>Pipeline <span>Workbench</span></h1>
+  <p>
+    Paste irregular dated observations, use <code>POST /hello/buildTsData</code> to convert them into
+    a regular <code>TsData</code>, then chain any sequence of API operations — statistics, normalization,
+    growth rates, aggregation or HP filter — to build a live transformation pipeline.
+  </p>
+</div>
+
+<main>
+
+  <!-- Step 0: raw data input -->
+  <div class="panel">
+    <div class="panel-title">Step 0 · Raw observations</div>
+    <div class="obs-hint">Enter one <code>YYYY-MM-DD, value</code> per line. Dates don't need to be regular.</div>
+    <textarea class="obs-area" id="obs-input" spellcheck="false">
+2022-01-15, 101.2
+2022-01-28, 103.4
+2022-02-10, 99.8
+2022-03-05, 105.1
+2022-04-20, 107.3
+2022-05-08, 104.9
+2022-06-14, 109.2
+2022-07-21, 111.5
+2022-08-03, 108.7
+2022-09-17, 113.4
+2022-10-29, 116.0
+2022-11-11, 112.8
+2022-12-05, 118.2
+2023-01-09, 115.6
+2023-02-22, 120.1
+2023-03-14, 117.9
+2023-04-07, 123.4
+2023-05-30, 121.0
+2023-06-18, 126.5
+2023-07-11, 124.3
+2023-08-25, 129.0
+2023-09-06, 126.8
+2023-10-19, 132.1
+2023-11-03, 129.7
+2023-12-27, 135.4
+    </textarea>
+
+    <div class="row-controls">
+      <div>
+        <label for="gather-freq">Target frequency</label>
+        <select id="gather-freq">
+          <option value="FREQ_MONTHLY" selected>Monthly</option>
+          <option value="FREQ_QUARTERLY">Quarterly</option>
+          <option value="FREQ_YEARLY">Yearly</option>
+        </select>
+      </div>
+      <div>
+        <label for="gather-agg">Aggregation</label>
+        <select id="gather-agg">
+          <option value="AGGREGATION_AVERAGE" selected>Average</option>
+          <option value="AGGREGATION_SUM">Sum</option>
+          <option value="AGGREGATION_FIRST">First</option>
+          <option value="AGGREGATION_LAST">Last</option>
+        </select>
+      </div>
+      <div>
+        <label>&nbsp;</label>
+        <button class="build-btn" id="build-btn">
+          <svg width="13" height="13" fill="none" viewBox="0 0 16 16"><path d="M2 8h12M8 2l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>
+          Build TsData
+        </button>
+      </div>
+    </div>
+    <div class="error-banner" id="build-error"></div>
+  </div>
+
+  <!-- Pipeline -->
+  <div class="panel">
+    <div class="panel-title">Transformation pipeline</div>
+    <div id="pipeline-root" class="pipeline"></div>
+  </div>
+
+</main>
+
+<footer>
+  Powered by <a href="https://github.com/jdemetra/jdplus-main" target="_blank">JDemetra+ v3</a>
+  · <a href="hodrick-prescott.html">HP Filter</a>
+  · <a href="aggregate.html">Aggregation</a>
+  · <a href="compose.html">Studio</a>
+  · <a href="reference.html">API Reference</a>
+  · <a href="q/swagger-ui" target="_blank">Swagger UI</a>
+</footer>
+
+<script>
+  // ── State ────────────────────────────────────────────────────────────────────
+  let tsData   = null;  // current TsData at top of pipeline
+  let pipeline = [];    // list of { series, op, result }
+  let charts   = {};
+
+  // ── Colors per step ──────────────────────────────────────────────────────────
+  const COLORS = ['#22d3a5','#4f8ef7','#f97316','#8b5cf6','#f9a8d4','#fde68a'];
+
+  // ── Label generator ──────────────────────────────────────────────────────────
+  const MONTH = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function makeLabels(start, count) {
+    const { frequency: f, year, pos = 0 } = start;
+    return Array.from({ length: count }, (_, i) => {
+      const p = pos + i;
+      if (f === 'FREQ_YEARLY')    return `${year + p}`;
+      if (f === 'FREQ_QUARTERLY') return `${year + Math.floor(p/4)} Q${p%4+1}`;
+      if (f === 'FREQ_MONTHLY')   return `${MONTH[p%12]} ${year + Math.floor(p/12)}`;
+      return `t${i}`;
+    });
+  }
+
+  // ── Parse raw observations textarea ─────────────────────────────────────────
+  function parseObs(text) {
+    const obs = [];
+    for (const line of text.split('\n')) {
+      const t = line.trim();
+      if (!t || t.startsWith('#')) continue;
+      const m = t.match(/^(\d{4})-(\d{2})-(\d{2})\s*[,\s]\s*([-\d.]+)/);
+      if (!m) continue;
+      obs.push({
+        date: { year: +m[1], month: +m[2], day: +m[3] },
+        value: +m[4]
+      });
+    }
+    return obs;
+  }
+
+  // ── Build TsData step ────────────────────────────────────────────────────────
+  async function buildTsData() {
+    const errEl = document.getElementById('build-error');
+    const btn   = document.getElementById('build-btn');
+    errEl.classList.remove('visible');
+    btn.disabled = true; btn.textContent = 'Building…';
+
+    const obs   = parseObs(document.getElementById('obs-input').value);
+    const freq  = document.getElementById('gather-freq').value;
+    const agg   = document.getElementById('gather-agg').value;
+
+    if (obs.length === 0) {
+      errEl.textContent = '⚠ No valid observations found. Use format: YYYY-MM-DD, value';
+      errEl.classList.add('visible');
+      btn.disabled = false; btn.textContent = 'Build TsData';
+      return;
+    }
+
+    const req = {
+      id: 'workbench',
+      gathering: { frequency: freq, aggregationType: agg, allowPartialAggregation: false, includeMissingValues: false },
+      observations: obs
+    };
+
+    try {
+      const resp = await fetch('/hello/buildTsData', {
+        method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(req)
+      });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status} – ${await resp.text()}`);
+      const data = await resp.json();
+      if (!data.series || data.series.values.length === 0) throw new Error('Empty series returned');
+
+      tsData = data.series;
+      pipeline = [];
+      renderPipeline();
+
+    } catch(err) {
+      errEl.textContent = `⚠ ${err.message}`;
+      errEl.classList.add('visible');
+    } finally {
+      btn.disabled = false;
+      btn.innerHTML = '<svg width="13" height="13" fill="none" viewBox="0 0 16 16"><path d="M2 8h12M8 2l6 6-6 6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg> Build TsData';
+    }
+  }
+
+  // ── Render pipeline ──────────────────────────────────────────────────────────
+  function renderPipeline() {
+    const root = document.getElementById('pipeline-root');
+    root.innerHTML = '';
+
+    if (!tsData) {
+      root.innerHTML = '<div style="color:var(--muted);font-size:.88rem;padding:12px 0">Build a TsData first (Step 0 above).</div>';
+      return;
+    }
+
+    // Always show the "base" step (the built TsData)
+    appendStep(root, null, tsData, 0, false);
+
+    // Show executed pipeline steps
+    pipeline.forEach((step, i) => {
+      appendStep(root, step.op, step.result, i + 1, false);
+    });
+
+    // Show "add step" row at the bottom
+    appendAddRow(root);
+  }
+
+  function appendStep(root, op, series, idx, isAdd) {
+    const color  = COLORS[idx % COLORS.length];
+    const label  = idx === 0 ? 'Built TsData' : (op ? describeOp(op) : 'Result');
+    const n      = series.values.length;
+    const mean   = (series.values.reduce((a,b)=>a+b,0)/n).toFixed(2);
+    const min    = Math.min(...series.values).toFixed(2);
+    const max    = Math.max(...series.values).toFixed(2);
+
+    const step = document.createElement('div');
+    step.className = 'pipeline-step';
+
+    // connector
+    const conn = document.createElement('div');
+    conn.className = 'step-connector';
+    conn.innerHTML = `<div class="dot active" style="background:${color}"></div>${idx < pipeline.length + 1 ? '<div class="line active"></div>' : ''}`;
+    step.appendChild(conn);
+
+    // card
+    const card = document.createElement('div');
+    card.className = 'step-card active';
+
+    const chartId = `chart-step-${idx}`;
+    card.innerHTML = `
+      <div class="step-header">
+        <span class="step-badge" style="background:${color}20;color:${color};border:1px solid ${color}40">step ${idx}</span>
+        <span class="step-title">${label}</span>
+      </div>
+      <div class="stat-row">
+        <span class="stat-pill"><strong>n</strong> = ${n}</span>
+        <span class="stat-pill"><strong>mean</strong> = ${mean}</span>
+        <span class="stat-pill"><strong>min</strong> = ${min}</span>
+        <span class="stat-pill"><strong>max</strong> = ${max}</span>
+      </div>
+      <div class="chart-wrapper"><canvas id="${chartId}"></canvas></div>`;
+
+    step.appendChild(card);
+    root.appendChild(step);
+
+    // draw mini chart
+    requestAnimationFrame(() => {
+      if (charts[chartId]) charts[chartId].destroy();
+      const ctx = document.getElementById(chartId);
+      if (!ctx) return;
+      charts[chartId] = new Chart(ctx, {
+        type: 'line',
+        data: {
+          labels: makeLabels(series.start, series.values.length),
+          datasets: [{ data: series.values, borderColor: color, borderWidth: 1.8, pointRadius: 0, tension: 0.3 }]
+        },
+        options: {
+          responsive: true, maintainAspectRatio: false,
+          plugins: { legend: { display: false }, tooltip: {
+            backgroundColor:'#1a1d27', borderColor:'#2a2d3a', borderWidth:1,
+            titleColor:'#e2e6f0', bodyColor:'#8892aa',
+            callbacks: { label: c => ` ${(+c.parsed.y).toFixed(3)}` }
+          }},
+          scales: {
+            x: { ticks:{color:'#8892aa',maxTicksLimit:8,maxRotation:0}, grid:{color:'#2a2d3a'} },
+            y: { ticks:{color:'#8892aa'}, grid:{color:'#2a2d3a'} }
+          }
+        }
+      });
+    });
+  }
+
+  function appendAddRow(root) {
+    // current series = last pipeline result or original tsData
+    const currentSeries = pipeline.length > 0 ? pipeline[pipeline.length-1].result : tsData;
+
+    const row = document.createElement('div');
+    row.className = 'pipeline-step';
+
+    const conn = document.createElement('div');
+    conn.className = 'step-connector';
+    conn.innerHTML = `<div class="dot"></div>`;
+    row.appendChild(conn);
+
+    const card = document.createElement('div');
+    card.className = 'step-card';
+    card.style.minHeight = '60px';
+    card.innerHTML = `
+      <div class="step-op-row">
+        <div>
+          <label>Next operation</label>
+          <select id="next-op">
+            <option value="statistics">Statistics</option>
+            <option value="normalize" selected>Normalize</option>
+            <option value="pct">% Change (lag 1)</option>
+            <option value="pct4">% Change (lag 4)</option>
+            <option value="delta">Difference (lag 1)</option>
+            <option value="delta2">2nd Difference</option>
+            <option value="hp100">HP Filter (λ=100)</option>
+            <option value="hp1600">HP Filter (λ=1600)</option>
+            <option value="aggregate_q">→ Quarterly (avg)</option>
+            <option value="aggregate_y">→ Yearly (avg)</option>
+          </select>
+        </div>
+        <div>
+          <label>&nbsp;</label>
+          <button class="step-run-btn" id="add-step-btn">
+            <svg width="12" height="12" fill="none" viewBox="0 0 16 16"><path d="M8 2v12M2 8h12" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"/></svg>
+            Add step
+          </button>
+        </div>
+        ${pipeline.length > 0 ? `<div><label>&nbsp;</label><button class="step-run-btn" id="undo-btn" style="background:#f97316">↩ Undo last</button></div>` : ''}
+      </div>`;
+
+    row.appendChild(card);
+    root.appendChild(row);
+
+    document.getElementById('add-step-btn').addEventListener('click', () => addStep(currentSeries));
+    const undoBtn = document.getElementById('undo-btn');
+    if (undoBtn) undoBtn.addEventListener('click', undoStep);
+  }
+
+  function describeOp(op) {
+    const map = {
+      statistics: '📊 Statistics', normalize: '📐 Normalize', pct: '📈 % Change (lag 1)',
+      pct4: '📈 % Change (lag 4)', delta: 'Δ Difference (lag 1)', delta2: 'Δ² 2nd Difference',
+      hp100: 'HP trend (λ=100)', hp1600: 'HP trend (λ=1600)',
+      aggregate_q: '→ Quarterly avg', aggregate_y: '→ Yearly avg'
+    };
+    return map[op] || op;
+  }
+
+  async function addStep(currentSeries) {
+    const op = document.getElementById('next-op').value;
+    const errEl = document.getElementById('build-error');
+    errEl.classList.remove('visible');
+
+    let endpoint, body;
+    const base = { id: 'pipe', series: currentSeries };
+
+    if (op === 'statistics') {
+      // special: show stats overlay, don't append a chart series
+      try {
+        const resp = await fetch('/hello/statistics', { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(base) });
+        const d = await resp.json();
+        alert(`Statistics:\nn = ${d.n}\nmean = ${d.average?.toFixed(3)}\nstdev = ${d.stdev?.toFixed(3)}\nmin = ${d.min?.toFixed(3)}\nmax = ${d.max?.toFixed(3)}\nQ25 = ${d.q25?.toFixed(3)}\nQ50 = ${d.q50?.toFixed(3)}\nQ75 = ${d.q75?.toFixed(3)}`);
+      } catch(e) { errEl.textContent = `⚠ ${e.message}`; errEl.classList.add('visible'); }
+      return;
+    } else if (op === 'normalize') {
+      endpoint = '/hello/normalize'; body = base;
+    } else if (op === 'pct') {
+      endpoint = '/hello/pct'; body = { ...base, lag: 1 };
+    } else if (op === 'pct4') {
+      endpoint = '/hello/pct'; body = { ...base, lag: 4 };
+    } else if (op === 'delta') {
+      endpoint = '/hello/delta'; body = { ...base, lag: 1, power: 1 };
+    } else if (op === 'delta2') {
+      endpoint = '/hello/delta'; body = { ...base, lag: 1, power: 2 };
+    } else if (op === 'hp100') {
+      endpoint = '/hello/hodrickPrescott'; body = { ...base, lambda: 100 };
+    } else if (op === 'hp1600') {
+      endpoint = '/hello/hodrickPrescott'; body = { ...base, lambda: 1600 };
+    } else if (op === 'aggregate_q') {
+      endpoint = '/hello/aggregate'; body = { ...base, aggregationType: 'AGGREGATION_AVERAGE', newFrequency: 'FREQ_QUARTERLY', complete: false };
+    } else if (op === 'aggregate_y') {
+      endpoint = '/hello/aggregate'; body = { ...base, aggregationType: 'AGGREGATION_AVERAGE', newFrequency: 'FREQ_YEARLY', complete: false };
+    }
+
+    try {
+      const resp = await fetch(endpoint, { method:'POST', headers:{'Content-Type':'application/json'}, body: JSON.stringify(body) });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status}`);
+      const d = await resp.json();
+
+      let resultSeries;
+      if (d.series)     resultSeries = d.series;       // normalize, pct, delta, aggregate
+      else if (d.trend) resultSeries = d.trend;         // HP filter → use trend component
+      else throw new Error('Unexpected response shape');
+
+      pipeline.push({ op, result: resultSeries });
+      renderPipeline();
+
+    } catch(err) {
+      errEl.textContent = `⚠ ${err.message}`;
+      errEl.classList.add('visible');
+    }
+  }
+
+  function undoStep() {
+    if (pipeline.length > 0) { pipeline.pop(); renderPipeline(); }
+  }
+
+  // ── Init ─────────────────────────────────────────────────────────────────────
+  document.getElementById('build-btn').addEventListener('click', buildTsData);
+  renderPipeline();
+</script>
+</body>
+</html>
+

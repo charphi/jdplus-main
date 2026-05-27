@@ -1,0 +1,350 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Aggregation Explorer · JDemetra+ v3</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:      #0f1117;
+      --surface: #1a1d27;
+      --border:  #2a2d3a;
+      --accent:  #4f8ef7;
+      --hi:      #f97316;
+      --lo:      #22d3a5;
+      --text:    #e2e6f0;
+      --muted:   #8892aa;
+      --radius:  10px;
+    }
+
+    body { font-family: system-ui, -apple-system, sans-serif; background: var(--bg); color: var(--text); min-height: 100vh; display: flex; flex-direction: column; }
+
+    header { background: var(--surface); border-bottom: 1px solid var(--border); padding: 14px 32px; display: flex; align-items: center; gap: 14px; }
+    header .brand { font-size: 1.1rem; font-weight: 700; }
+    header .brand span { color: var(--accent); }
+    header .badge { margin-left: auto; font-size: .72rem; background: #f9731620; color: var(--hi); border: 1px solid #f9731640; border-radius: 20px; padding: 3px 10px; }
+
+    .hero { padding: 36px 32px 20px; max-width: 960px; width: 100%; margin: 0 auto; }
+    .hero h1 { font-size: 1.75rem; font-weight: 800; }
+    .hero h1 span { color: var(--accent); }
+    .hero p { margin-top: 8px; color: var(--muted); line-height: 1.6; font-size: .95rem; }
+
+    main { flex: 1; max-width: 960px; width: 100%; margin: 0 auto; padding: 0 32px 48px; display: flex; flex-direction: column; gap: 20px; }
+
+    .panel { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); padding: 20px 24px; }
+    .panel-title { font-size: .72rem; font-weight: 700; letter-spacing: .1em; text-transform: uppercase; color: var(--muted); margin-bottom: 14px; }
+
+    .controls-grid { display: grid; grid-template-columns: 1fr 1fr 1fr 1fr; gap: 16px; align-items: end; }
+    @media (max-width: 700px) { .controls-grid { grid-template-columns: 1fr 1fr; } }
+
+    label { display: block; font-size: .82rem; color: var(--muted); margin-bottom: 6px; }
+    select { width: 100%; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; color: var(--text); padding: 8px 10px; font-size: .9rem; appearance: none; }
+    select:focus { outline: 2px solid var(--accent); border-color: transparent; }
+
+    .toggle-row { display: flex; align-items: center; gap: 8px; font-size: .87rem; color: var(--muted); }
+    input[type="checkbox"] { accent-color: var(--accent); width: 15px; height: 15px; cursor: pointer; }
+
+    .run-btn { display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 11px; background: var(--accent); color: #fff; font-size: .95rem; font-weight: 600; border: none; border-radius: 8px; cursor: pointer; transition: background .15s; }
+    .run-btn:hover { background: #3a7ae0; }
+    .run-btn:disabled { background: #2a3a5a; color: var(--muted); cursor: not-allowed; }
+
+    .chart-wrapper { position: relative; height: 320px; }
+
+    .stats-strip { display: grid; grid-template-columns: repeat(4, 1fr); gap: 12px; }
+    @media (max-width: 640px) { .stats-strip { grid-template-columns: 1fr 1fr; } }
+    .stat-card { background: var(--bg); border: 1px solid var(--border); border-radius: 8px; padding: 12px 14px; }
+    .stat-card .stat-label { font-size: .72rem; color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+    .stat-card .stat-val { font-size: 1.25rem; font-weight: 700; margin-top: 2px; font-variant-numeric: tabular-nums; }
+
+    .legend { display: flex; gap: 20px; flex-wrap: wrap; font-size: .82rem; }
+    .legend-item { display: flex; align-items: center; gap: 6px; }
+    .legend-dot { width: 12px; height: 12px; border-radius: 50%; flex-shrink: 0; }
+
+    .json-toggle { background: transparent; border: none; color: var(--accent); font-size: .82rem; cursor: pointer; padding: 0; display: flex; align-items: center; gap: 5px; }
+    .json-block { display: none; margin-top: 10px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; padding: 14px; font-size: .78rem; font-family: 'Cascadia Code', 'JetBrains Mono', monospace; color: #a8d8a8; white-space: pre; overflow-x: auto; max-height: 280px; }
+    .json-block.open { display: block; }
+
+    .error-banner { display: none; background: #3f1515; border: 1px solid #7f2020; border-radius: 8px; padding: 12px 16px; font-size: .88rem; color: #f87171; }
+    .error-banner.visible { display: block; }
+
+    footer { text-align: center; padding: 16px; font-size: .75rem; color: var(--muted); border-top: 1px solid var(--border); }
+    footer a { color: var(--accent); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<header>
+  <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+    <rect width="28" height="28" rx="7" fill="#f9731620"/>
+    <rect x="4" y="14" width="4" height="10" rx="1" fill="#f97316"/>
+    <rect x="10" y="10" width="4" height="14" rx="1" fill="#f97316" opacity=".7"/>
+    <rect x="16" y="7"  width="4" height="17" rx="1" fill="#f97316" opacity=".4"/>
+    <rect x="22" y="4"  width="2" height="20" rx="1" fill="#f97316" opacity=".2"/>
+  </svg>
+  <div><div class="brand"><span>JDemetra+</span> v3 · Web Service</div></div>
+  <div class="badge">Aggregation Explorer</div>
+</header>
+
+<div class="hero">
+  <h1>Frequency <span>Aggregation</span></h1>
+  <p>
+    Convert a high-frequency series to a lower frequency using six different aggregation methods —
+    sum, average, first, last, min or max. The original series is shown in blue; the aggregated output
+    in orange. This page calls <code>POST /hello/aggregate</code> live.
+  </p>
+</div>
+
+<main>
+
+  <div class="panel">
+    <div class="panel-title">Parameters</div>
+    <div class="controls-grid">
+      <div>
+        <label for="src-freq">Source frequency</label>
+        <select id="src-freq">
+          <option value="FREQ_MONTHLY" selected>Monthly</option>
+          <option value="FREQ_QUARTERLY">Quarterly</option>
+          <option value="FREQ_HALF_YEARLY">Half-yearly</option>
+        </select>
+      </div>
+      <div>
+        <label for="tgt-freq">Target frequency</label>
+        <select id="tgt-freq">
+          <option value="FREQ_QUARTERLY">Quarterly</option>
+          <option value="FREQ_HALF_YEARLY">Half-yearly</option>
+          <option value="FREQ_YEARLY" selected>Yearly</option>
+        </select>
+      </div>
+      <div>
+        <label for="agg-type">Aggregation method</label>
+        <select id="agg-type">
+          <option value="AGGREGATION_SUM">Sum</option>
+          <option value="AGGREGATION_AVERAGE" selected>Average</option>
+          <option value="AGGREGATION_FIRST">First</option>
+          <option value="AGGREGATION_LAST">Last</option>
+          <option value="AGGREGATION_MAX">Max</option>
+          <option value="AGGREGATION_MIN">Min</option>
+        </select>
+      </div>
+      <div>
+        <label>&nbsp;</label>
+        <button class="run-btn" id="run-btn">
+          <svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M4 2.5l9 5.5-9 5.5V2.5z" fill="currentColor"/></svg>
+          Aggregate
+        </button>
+        <div class="toggle-row" style="margin-top:8px">
+          <input type="checkbox" id="complete-cb">
+          <label for="complete-cb" style="margin:0">Complete periods only</label>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <div class="error-banner" id="error-banner"></div>
+
+  <div class="panel">
+    <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center">
+      <span>Original vs Aggregated</span>
+      <div class="legend">
+        <div class="legend-item"><div class="legend-dot" style="background:#4f8ef7"></div>Original</div>
+        <div class="legend-item"><div class="legend-dot" style="background:var(--hi)"></div>Aggregated</div>
+      </div>
+    </div>
+    <div class="chart-wrapper"><canvas id="agg-chart"></canvas></div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">Impact on series</div>
+    <div class="stats-strip">
+      <div class="stat-card"><div class="stat-label">Original obs.</div><div class="stat-val" id="s-orig">—</div></div>
+      <div class="stat-card"><div class="stat-label">Aggregated obs.</div><div class="stat-val" id="s-agg">—</div></div>
+      <div class="stat-card"><div class="stat-label">Reduction</div><div class="stat-val" id="s-reduce">—</div></div>
+      <div class="stat-card"><div class="stat-label">Method</div><div class="stat-val" id="s-method" style="font-size:.9rem">—</div></div>
+    </div>
+  </div>
+
+  <div class="panel">
+    <div class="panel-title">API transparency</div>
+    <div style="display:flex;gap:24px;flex-wrap:wrap">
+      <div>
+        <button class="json-toggle" onclick="toggleJson('req-json', this)"><span>▶</span> Request JSON</button>
+        <pre class="json-block" id="req-json"></pre>
+      </div>
+      <div>
+        <button class="json-toggle" onclick="toggleJson('res-json', this)"><span>▶</span> Response JSON</button>
+        <pre class="json-block" id="res-json"></pre>
+      </div>
+    </div>
+  </div>
+
+</main>
+
+<footer>
+  Powered by <a href="https://github.com/jdemetra/jdplus-main" target="_blank">JDemetra+ v3</a>
+  · <a href="hodrick-prescott.html">HP Filter</a>
+  · <a href="tutorial.html">Tutorial</a>
+  · <a href="compare.html">Growth Rates</a>
+  · <a href="q/swagger-ui" target="_blank">Swagger UI</a>
+</footer>
+
+<script>
+  // ── Demo data generators ────────────────────────────────────────────────────
+  function lcg(seed) {
+    let s = seed >>> 0;
+    return () => { s = Math.imul(1664525, s) + 1013904223 >>> 0; return s / 0x100000000; };
+  }
+
+  const FREQ_PERIODS = {
+    FREQ_MONTHLY:     12,
+    FREQ_QUARTERLY:    4,
+    FREQ_HALF_YEARLY:  2,
+    FREQ_YEARLY:       1
+  };
+
+  function buildSeries(freqKey) {
+    const rand = lcg(0xCAFEBABE);
+    const n = FREQ_PERIODS[freqKey] * 8; // 8 years
+    const vals = [];
+    let base = 100;
+    for (let i = 0; i < n; i++) {
+      base += (rand() - 0.45) * 2 + 0.3;
+      vals.push(+base.toFixed(2));
+    }
+    return { start: { frequency: freqKey, year: 2015, pos: 0 }, values: vals };
+  }
+
+  // ── Label generator ─────────────────────────────────────────────────────────
+  const MONTH = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  function makeLabels(start, count) {
+    const { frequency: f, year, pos = 0 } = start;
+    return Array.from({ length: count }, (_, i) => {
+      const p = pos + i;
+      if (f === 'FREQ_YEARLY')       return `${year + p}`;
+      if (f === 'FREQ_HALF_YEARLY')  return `${year + Math.floor(p/2)} H${p%2+1}`;
+      if (f === 'FREQ_QUARTERLY')    return `${year + Math.floor(p/4)} Q${p%4+1}`;
+      if (f === 'FREQ_BI_MONTHLY')   return `${year + Math.floor(p/6)} B${p%6+1}`;
+      if (f === 'FREQ_MONTHLY')      return `${MONTH[p%12]} ${year + Math.floor(p/12)}`;
+      return `t${i}`;
+    });
+  }
+
+  // ── Chart setup ─────────────────────────────────────────────────────────────
+  const ctx = document.getElementById('agg-chart').getContext('2d');
+  const chart = new Chart(ctx, {
+    data: {
+      labels: [],
+      datasets: [
+        { type: 'line', label: 'Original', data: [], borderColor: '#4f8ef7', borderWidth: 1.5, pointRadius: 0, tension: 0.3, yAxisID: 'y' },
+        { type: 'bar',  label: 'Aggregated', data: [], backgroundColor: '#f9731640', borderColor: '#f97316', borderWidth: 1.5, yAxisID: 'y' }
+      ]
+    },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1a1d27', borderColor: '#2a2d3a', borderWidth: 1,
+          titleColor: '#e2e6f0', bodyColor: '#8892aa',
+          callbacks: { label: c => ` ${c.dataset.label}: ${c.parsed.y.toFixed(3)}` }
+        }
+      },
+      scales: {
+        x: { ticks: { color: '#8892aa', maxTicksLimit: 12, maxRotation: 0 }, grid: { color: '#2a2d3a' } },
+        y: { ticks: { color: '#8892aa' }, grid: { color: '#2a2d3a' } }
+      }
+    }
+  });
+
+  // ── API call ───────────────────────────��─────────────────────────────────────
+  async function runAggregate() {
+    const srcFreq = document.getElementById('src-freq').value;
+    const tgtFreq = document.getElementById('tgt-freq').value;
+    const aggType = document.getElementById('agg-type').value;
+    const complete = document.getElementById('complete-cb').checked;
+
+    const errorBanner = document.getElementById('error-banner');
+    const runBtn = document.getElementById('run-btn');
+    errorBanner.classList.remove('visible');
+    runBtn.disabled = true;
+    runBtn.textContent = 'Running…';
+
+    const series = buildSeries(srcFreq);
+    const req = { id: 'demo', series, aggregationType: aggType, newFrequency: tgtFreq, complete };
+
+    document.getElementById('req-json').textContent = JSON.stringify(req, null, 2);
+
+    try {
+      const resp = await fetch('/hello/aggregate', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(req)
+      });
+      if (!resp.ok) throw new Error(`HTTP ${resp.status} – ${await resp.text()}`);
+
+      const data = await resp.json();
+      document.getElementById('res-json').textContent = JSON.stringify(data, null, 2);
+
+      const origVals = series.values;
+      const aggVals  = data.series.values;
+
+      // Build a merged label axis: place aggregated bars at first period of each bucket
+      const origLabels = makeLabels(series.start, origVals.length);
+      const aggLabels  = makeLabels(data.series.start, aggVals.length);
+
+      // Use original labels for x-axis, map aggregated onto it
+      const ratio = Math.round(origVals.length / aggVals.length);
+      const aggMapped = Array(origVals.length).fill(null);
+      aggVals.forEach((v, i) => { aggMapped[i * ratio] = v; });
+
+      chart.data.labels = origLabels;
+      chart.data.datasets[0].data = origVals;
+      chart.data.datasets[1].data = aggMapped;
+      chart.update('active');
+
+      // Stats
+      const methodName = aggType.replace('AGGREGATION_', '');
+      document.getElementById('s-orig').textContent    = origVals.length;
+      document.getElementById('s-agg').textContent     = aggVals.length;
+      document.getElementById('s-reduce').textContent  = `÷ ${ratio}`;
+      document.getElementById('s-method').textContent  = methodName;
+
+    } catch(err) {
+      errorBanner.textContent = `⚠ ${err.message}`;
+      errorBanner.classList.add('visible');
+    } finally {
+      runBtn.disabled = false;
+      runBtn.innerHTML = '<svg width="14" height="14" fill="none" viewBox="0 0 16 16"><path d="M4 2.5l9 5.5-9 5.5V2.5z" fill="currentColor"/></svg> Aggregate';
+    }
+  }
+
+  function toggleJson(id, btn) {
+    const el = document.getElementById(id);
+    el.classList.toggle('open');
+    btn.querySelector('span').textContent = el.classList.contains('open') ? '▼' : '▶';
+  }
+
+  document.getElementById('run-btn').addEventListener('click', runAggregate);
+
+  // Validate source/target frequency pairing
+  document.getElementById('src-freq').addEventListener('change', function() {
+    const srcP = FREQ_PERIODS[this.value];
+    const tgtSel = document.getElementById('tgt-freq');
+    Array.from(tgtSel.options).forEach(o => {
+      o.disabled = FREQ_PERIODS[o.value] >= srcP;
+    });
+    // Reset to first valid
+    if (FREQ_PERIODS[tgtSel.value] >= srcP) {
+      tgtSel.value = Array.from(tgtSel.options).find(o => !o.disabled)?.value;
+    }
+  });
+
+  window.addEventListener('load', runAggregate);
+</script>
+</body>
+</html>
+
