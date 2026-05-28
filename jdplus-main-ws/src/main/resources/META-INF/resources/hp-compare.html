@@ -1,0 +1,764 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>HP Filter Comparison · JDemetra+ v3</title>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.3/dist/chart.umd.min.js"></script>
+  <style>
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bg:       #0f1117;
+      --surface:  #1a1d27;
+      --border:   #2a2d3a;
+      --text:     #e2e6f0;
+      --muted:    #8892aa;
+      --radius:   10px;
+
+      --c0: #4f8ef7;  /* blue   */
+      --c1: #f97316;  /* orange */
+      --c2: #22d3a5;  /* teal   */
+      --c3: #a78bfa;  /* purple */
+    }
+
+    body {
+      font-family: system-ui, -apple-system, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    header {
+      background: var(--surface);
+      border-bottom: 1px solid var(--border);
+      padding: 14px 32px;
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    header .brand { font-size: 1.1rem; font-weight: 700; }
+    header .brand span { color: var(--c0); }
+    header .badge {
+      margin-left: auto;
+      font-size: .72rem;
+      background: #4f8ef720;
+      color: var(--c0);
+      border: 1px solid #4f8ef740;
+      border-radius: 20px;
+      padding: 3px 10px;
+    }
+
+    /* ── Hero ── */
+    .hero {
+      padding: 36px 32px 20px;
+      max-width: 1280px;
+      width: 100%;
+      margin: 0 auto;
+    }
+    .hero h1 { font-size: 1.75rem; font-weight: 800; }
+    .hero h1 em { color: var(--c0); font-style: normal; }
+    .hero p  { margin-top: 8px; color: var(--muted); line-height: 1.6; font-size: .95rem; max-width: 700px; }
+
+    /* ── Main ── */
+    main {
+      flex: 1;
+      max-width: 1280px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 0 32px 56px;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+
+    /* ── Panel ── */
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 20px 24px;
+    }
+    .panel-title {
+      font-size: .72rem;
+      font-weight: 700;
+      letter-spacing: .1em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin-bottom: 14px;
+    }
+
+    /* ── Top controls ── */
+    .top-controls {
+      display: flex;
+      align-items: flex-end;
+      gap: 20px;
+      flex-wrap: wrap;
+    }
+    .ctrl-group { display: flex; flex-direction: column; gap: 6px; }
+    label { font-size: .82rem; color: var(--muted); }
+    select {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      color: var(--text);
+      padding: 8px 10px;
+      font-size: .9rem;
+      appearance: none;
+      min-width: 160px;
+    }
+    select:focus { outline: 2px solid var(--c0); border-color: transparent; }
+
+    .run-btn {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 9px 22px;
+      background: var(--c0);
+      color: #fff;
+      font-size: .95rem;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+      transition: background .15s, transform .1s;
+      white-space: nowrap;
+    }
+    .run-btn:hover { background: #3a7ae0; }
+    .run-btn:active { transform: scale(.97); }
+    .run-btn:disabled { background: #2a3a5a; color: var(--muted); cursor: not-allowed; }
+
+    /* ── View toggle ── */
+    .view-toggle {
+      display: flex;
+      gap: 6px;
+      margin-left: auto;
+    }
+    .vtab {
+      padding: 6px 14px;
+      font-size: .82rem;
+      border-radius: 99px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all .15s;
+    }
+    .vtab.active {
+      background: var(--c0);
+      border-color: var(--c0);
+      color: #fff;
+    }
+
+    /* ── Overlay chart ── */
+    .overlay-chart-wrapper { position: relative; height: 320px; }
+
+    /* ── 2×2 grid ── */
+    .compare-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 16px;
+    }
+    @media (max-width: 860px) { .compare-grid { grid-template-columns: 1fr; } }
+
+    /* ── Slot panel ── */
+    .slot {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      border-top: 3px solid var(--slot-color, var(--c0));
+      display: flex;
+      flex-direction: column;
+      gap: 12px;
+    }
+
+    .slot-header {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    .slot-dot {
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--slot-color, var(--c0));
+      flex-shrink: 0;
+    }
+    .slot-label {
+      font-size: .8rem;
+      font-weight: 700;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+    .slot-lambda-badge {
+      margin-left: auto;
+      font-size: .82rem;
+      font-variant-numeric: tabular-nums;
+      font-weight: 700;
+      color: var(--slot-color, var(--c0));
+      background: color-mix(in srgb, var(--slot-color, var(--c0)) 15%, transparent);
+      padding: 2px 9px;
+      border-radius: 99px;
+    }
+
+    /* ── Lambda row ── */
+    .lambda-row {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+    input[type="range"] {
+      flex: 1;
+      cursor: pointer;
+    }
+    .presets { display: flex; gap: 5px; flex-wrap: wrap; }
+    .preset-btn {
+      font-size: .72rem;
+      padding: 3px 8px;
+      border-radius: 99px;
+      border: 1px solid var(--border);
+      background: transparent;
+      color: var(--muted);
+      cursor: pointer;
+      transition: all .12s;
+    }
+    .preset-btn:hover { border-color: var(--slot-color, var(--c0)); color: var(--slot-color, var(--c0)); }
+    .preset-btn.active { background: var(--slot-color, var(--c0)); border-color: var(--slot-color, var(--c0)); color: #fff; }
+
+    /* ── Mini chart ── */
+    .slot-chart-wrapper { position: relative; height: 180px; }
+
+    /* ── Mini stats ── */
+    .slot-stats {
+      display: grid;
+      grid-template-columns: 1fr 1fr 1fr;
+      gap: 8px;
+    }
+    .slot-stat {
+      background: var(--bg);
+      border: 1px solid var(--border);
+      border-radius: 6px;
+      padding: 8px 10px;
+    }
+    .slot-stat .sl { font-size: .68rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+    .slot-stat .sv { font-size: 1rem; font-weight: 700; margin-top: 2px; font-variant-numeric: tabular-nums; }
+
+    /* ── Comparison table ── */
+    .cmp-table {
+      width: 100%;
+      border-collapse: collapse;
+      font-size: .88rem;
+    }
+    .cmp-table th, .cmp-table td {
+      padding: 10px 14px;
+      text-align: left;
+      border-bottom: 1px solid var(--border);
+    }
+    .cmp-table th {
+      font-size: .72rem;
+      letter-spacing: .08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      font-weight: 600;
+    }
+    .cmp-table tr:last-child td { border-bottom: none; }
+    .cmp-table td.num { font-variant-numeric: tabular-nums; }
+    .color-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 7px;
+    }
+    .color-chip::before {
+      content: '';
+      display: inline-block;
+      width: 10px; height: 10px;
+      border-radius: 50%;
+      background: var(--chip-color);
+    }
+
+    /* ── Error banner ── */
+    .error-banner {
+      display: none;
+      background: #3f1515;
+      border: 1px solid #7f2020;
+      border-radius: 8px;
+      padding: 12px 16px;
+      font-size: .88rem;
+      color: #f87171;
+    }
+    .error-banner.visible { display: block; }
+
+    /* ── Loading overlay on slot ── */
+    .slot.loading { opacity: .5; pointer-events: none; }
+
+    /* ── Footer ── */
+    footer {
+      text-align: center;
+      padding: 16px;
+      font-size: .75rem;
+      color: var(--muted);
+      border-top: 1px solid var(--border);
+    }
+    footer a { color: var(--c0); text-decoration: none; }
+    footer a:hover { text-decoration: underline; }
+  </style>
+</head>
+<body>
+
+<header>
+  <svg width="28" height="28" viewBox="0 0 28 28" fill="none">
+    <rect width="28" height="28" rx="7" fill="#4f8ef720"/>
+    <polyline points="4,22 9,14 13,17 17,8 24,6" stroke="#4f8ef7" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" fill="none"/>
+  </svg>
+  <div class="brand"><span>JDemetra+</span> v3 · Web Service</div>
+  <div class="badge">REST API Demo</div>
+</header>
+
+<div class="hero">
+  <h1>Hodrick–Prescott <em>Comparison</em></h1>
+  <p>
+    Four λ values run in parallel against the same series. Adjust each slider independently
+    to explore how the smoothing parameter shapes the trend and the residual cycle.
+    All four calls go to <code>POST /hello/hodrickPrescott</code> simultaneously.
+  </p>
+</div>
+
+<main>
+
+  <!-- ── Top bar ── -->
+  <div class="panel">
+    <div class="panel-title">Shared settings</div>
+    <div class="top-controls">
+      <div class="ctrl-group">
+        <label for="freq-select">Frequency (applies to all panels)</label>
+        <select id="freq-select">
+          <option value="FREQ_YEARLY"      data-lambdas="10,100,1000,10000">Yearly</option>
+          <option value="FREQ_HALF_YEARLY" data-lambdas="100,400,1600,14400">Half-yearly</option>
+          <option value="FREQ_QUARTERLY"   data-lambdas="100,1600,14400,100000" selected>Quarterly</option>
+          <option value="FREQ_MONTHLY"     data-lambdas="1600,14400,100000,1000000">Monthly</option>
+        </select>
+      </div>
+      <div class="ctrl-group">
+        <label>View</label>
+        <div class="view-toggle">
+          <button class="vtab active" id="vtab-grid" onclick="setView('grid')">Grid</button>
+          <button class="vtab"        id="vtab-overlay" onclick="setView('overlay')">Overlay</button>
+        </div>
+      </div>
+      <button class="run-btn" id="run-btn" onclick="runAll()">
+        <svg width="16" height="16" fill="none" viewBox="0 0 16 16">
+          <path d="M4 2.5l9 5.5-9 5.5V2.5z" fill="currentColor"/>
+        </svg>
+        Run All
+      </button>
+    </div>
+  </div>
+
+  <!-- ── Error ── -->
+  <div class="error-banner" id="error-banner"></div>
+
+  <!-- ── Overlay view ── -->
+  <div id="overlay-section" style="display:none">
+    <div class="panel">
+      <div class="panel-title" style="display:flex;justify-content:space-between;align-items:center">
+        <span>All trends overlaid</span>
+        <div style="display:flex;gap:16px;flex-wrap:wrap;font-size:.8rem">
+          <div style="display:flex;align-items:center;gap:6px">
+            <div style="width:10px;height:10px;border-radius:50%;background:#6b7280"></div>Original
+          </div>
+          <div id="legend-overlay"></div>
+        </div>
+      </div>
+      <div class="overlay-chart-wrapper">
+        <canvas id="overlay-chart"></canvas>
+      </div>
+    </div>
+  </div>
+
+  <!-- ── Grid view ── -->
+  <div id="grid-section">
+    <div class="compare-grid" id="compare-grid">
+      <!-- slots injected by JS -->
+    </div>
+  </div>
+
+  <!-- ── Stats table ── -->
+  <div class="panel">
+    <div class="panel-title">Comparison table</div>
+    <table class="cmp-table">
+      <thead>
+        <tr>
+          <th>Panel</th>
+          <th>λ</th>
+          <th>Noise amplitude (min / max)</th>
+          <th>Noise std dev</th>
+          <th>Trend range (start → end)</th>
+          <th>Trend swing</th>
+        </tr>
+      </thead>
+      <tbody id="cmp-tbody">
+        <tr><td colspan="6" style="color:var(--muted);padding:16px 14px">Run the filter to populate this table.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+</main>
+
+<footer>
+  Powered by <a href="https://github.com/jdemetra/jdplus-main" target="_blank">JDemetra+ v3</a>
+  · <a href="index.html">Home</a>
+  · <a href="hodrick-prescott.html">HP Filter</a>
+  · <a href="tutorial.html">Tutorial</a>
+  · <a href="game.html">Game</a>
+  · <a href="aggregate.html">Aggregation</a>
+  · <a href="compare.html">Growth Rates</a>
+  · <a href="compose.html">Studio</a>
+  · <a href="playground.html">Workbench</a>
+  · <a href="dashboard.html">Dashboard</a>
+  · <a href="reference.html">API Reference</a>
+  · <a href="q/swagger-ui" target="_blank">Swagger UI</a>
+</footer>
+
+<script>
+// ─── Constants ──────────────────────────────────────────────────────────────
+const SLOT_COLORS  = ['#4f8ef7', '#f97316', '#22d3a5', '#a78bfa'];
+const SLOT_LETTERS = ['A', 'B', 'C', 'D'];
+const PRESET_LAMBDAS = [10, 100, 400, 1600, 6400, 14400, 100000, 1000000];
+
+// ─── Demo data (quarterly, 2000Q1–2019Q4) ──────────────────────────────────
+function lcg(seed) {
+  let s = seed >>> 0;
+  return () => { s = Math.imul(1664525, s) + 1013904223 >>> 0; return s / 0x100000000; };
+}
+function buildDemoData() {
+  const rand = lcg(0xDEADBEEF);
+  const n = 80;
+  const vals = [];
+  for (let t = 0; t < n; t++) {
+    const trend   = 100 * Math.pow(1.005, t);
+    const cycle   = 3.8 * Math.sin(2 * Math.PI * t / 32);
+    const crisis  = -7  * Math.exp(-0.18 * Math.pow(t - 35, 2));
+    const rec2001 = -2  * Math.exp(-0.60 * Math.pow(t -  6, 2));
+    const noise   = (rand() - 0.5) * 1.8;
+    vals.push(+(trend + cycle + crisis + rec2001 + noise).toFixed(3));
+  }
+  return vals;
+}
+const DEMO_VALUES = buildDemoData();
+
+const MONTH_ABBR = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+function generateLabels(start, count) {
+  const { frequency: freq, year, pos = 0 } = start;
+  return Array.from({ length: count }, (_, i) => {
+    const p = pos + i;
+    switch (freq) {
+      case 'FREQ_YEARLY':        return `${year + p}`;
+      case 'FREQ_HALF_YEARLY':   return `${year + Math.floor(p / 2)} H${p % 2 + 1}`;
+      case 'FREQ_QUARTERLY':     return `${year + Math.floor(p / 4)} Q${p % 4 + 1}`;
+      case 'FREQ_MONTHLY':       return `${MONTH_ABBR[p % 12]} ${year + Math.floor(p / 12)}`;
+      default:                   return `t${i}`;
+    }
+  });
+}
+const INITIAL_LABELS = generateLabels({ frequency: 'FREQ_QUARTERLY', year: 2000, pos: 0 }, DEMO_VALUES.length);
+
+// ─── State ──────────────────────────────────────────────────────────────────
+const slotState = [
+  { lambda: 100,    chart: null, result: null },
+  { lambda: 1600,   chart: null, result: null },
+  { lambda: 14400,  chart: null, result: null },
+  { lambda: 100000, chart: null, result: null },
+];
+let overlayChart = null;
+let currentView = 'grid';
+
+// ─── Build slot DOM ──────────────────────────────────────────────────────────
+function buildSlots() {
+  const grid = document.getElementById('compare-grid');
+  grid.innerHTML = '';
+
+  slotState.forEach((st, i) => {
+    const color  = SLOT_COLORS[i];
+    const letter = SLOT_LETTERS[i];
+
+    const slot = document.createElement('div');
+    slot.className = 'slot';
+    slot.id = `slot-${i}`;
+    slot.style.setProperty('--slot-color', color);
+
+    const presetsHtml = PRESET_LAMBDAS.map(l =>
+      `<button class="preset-btn${l === st.lambda ? ' active' : ''}" data-lambda="${l}" onclick="setLambda(${i},${l},this)">${l.toLocaleString()}</button>`
+    ).join('');
+
+    slot.innerHTML = `
+      <div class="slot-header">
+        <div class="slot-dot"></div>
+        <div class="slot-label">Panel ${letter}</div>
+        <div class="slot-lambda-badge" id="badge-${i}">λ = ${st.lambda.toLocaleString()}</div>
+      </div>
+      <div>
+        <div class="lambda-row">
+          <input type="range" id="slider-${i}" min="1" max="6" step="0.01"
+                 value="${Math.log10(st.lambda).toFixed(3)}"
+                 style="accent-color:${color}"
+                 oninput="onSlider(${i},this.value)" />
+        </div>
+        <div class="presets" style="margin-top:6px" id="presets-${i}">${presetsHtml}</div>
+      </div>
+      <div class="slot-chart-wrapper">
+        <canvas id="chart-${i}"></canvas>
+      </div>
+      <div class="slot-stats">
+        <div class="slot-stat">
+          <div class="sl">Noise min</div>
+          <div class="sv" id="nmin-${i}">—</div>
+        </div>
+        <div class="slot-stat">
+          <div class="sl">Noise max</div>
+          <div class="sv" id="nmax-${i}">—</div>
+        </div>
+        <div class="slot-stat">
+          <div class="sl">Noise std</div>
+          <div class="sv" id="nstd-${i}">—</div>
+        </div>
+      </div>
+    `;
+    grid.appendChild(slot);
+
+    // Chart
+    const ctx = document.getElementById(`chart-${i}`).getContext('2d');
+    st.chart = new Chart(ctx, {
+      data: {
+        labels: INITIAL_LABELS,
+        datasets: [
+          {
+            type: 'line', label: 'Original', data: DEMO_VALUES,
+            borderColor: '#6b728044', borderWidth: 1.2, pointRadius: 0, tension: 0.3, yAxisID: 'y'
+          },
+          {
+            type: 'line', label: 'Trend', data: [],
+            borderColor: color, borderWidth: 2.2, pointRadius: 0, tension: 0.3, yAxisID: 'y'
+          },
+          {
+            type: 'line', label: 'Noise', data: [],
+            borderColor: color + '99', borderWidth: 1.2, pointRadius: 0,
+            tension: 0.3, yAxisID: 'y2', borderDash: [4, 3],
+            fill: { target: 'origin', above: color + '18', below: color + '18' }
+          }
+        ]
+      },
+      options: {
+        responsive: true, maintainAspectRatio: false,
+        interaction: { mode: 'index', intersect: false },
+        plugins: {
+          legend: { display: false },
+          tooltip: {
+            backgroundColor: '#1a1d27', borderColor: '#2a2d3a', borderWidth: 1,
+            titleColor: '#e2e6f0', bodyColor: '#8892aa',
+            callbacks: { label: c => ` ${c.dataset.label}: ${c.parsed.y.toFixed(3)}` }
+          }
+        },
+        scales: {
+          x: { ticks: { color: '#8892aa', maxTicksLimit: 6, maxRotation: 0 }, grid: { color: '#2a2d3a' } },
+          y: { type: 'linear', position: 'left',  ticks: { color: '#8892aa' }, grid: { color: '#2a2d3a' } },
+          y2:{ type: 'linear', position: 'right', ticks: { color: color + 'aa' }, grid: { drawOnChartArea: false } }
+        }
+      }
+    });
+  });
+}
+
+// ─── Build overlay chart ─────────────────────────────────────────────────────
+function buildOverlayChart() {
+  const ctx = document.getElementById('overlay-chart').getContext('2d');
+  const datasets = [
+    {
+      type: 'line', label: 'Original', data: DEMO_VALUES,
+      borderColor: '#6b7280', borderWidth: 1.2, pointRadius: 0, tension: 0.3, yAxisID: 'y'
+    },
+    ...slotState.map((st, i) => ({
+      type: 'line', label: `λ = ${st.lambda.toLocaleString()}`, data: [],
+      borderColor: SLOT_COLORS[i], borderWidth: 2, pointRadius: 0, tension: 0.3, yAxisID: 'y'
+    }))
+  ];
+
+  overlayChart = new Chart(ctx, {
+    data: { labels: INITIAL_LABELS, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      interaction: { mode: 'index', intersect: false },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          backgroundColor: '#1a1d27', borderColor: '#2a2d3a', borderWidth: 1,
+          titleColor: '#e2e6f0', bodyColor: '#8892aa',
+          callbacks: { label: c => ` ${c.dataset.label}: ${c.parsed.y.toFixed(3)}` }
+        }
+      },
+      scales: {
+        x: { ticks: { color: '#8892aa', maxTicksLimit: 10, maxRotation: 0 }, grid: { color: '#2a2d3a' } },
+        y: { ticks: { color: '#8892aa' }, grid: { color: '#2a2d3a' } }
+      }
+    }
+  });
+
+  // Legend pills
+  const leg = document.getElementById('legend-overlay');
+  leg.innerHTML = slotState.map((st, i) => `
+    <div style="display:flex;align-items:center;gap:5px">
+      <div style="width:10px;height:10px;border-radius:50%;background:${SLOT_COLORS[i]}"></div>
+      <span id="leg-${i}">λ = ${st.lambda.toLocaleString()}</span>
+    </div>`).join('');
+}
+
+// ─── Lambda controls ─────────────────────────────────────────────────────────
+function onSlider(i, v) {
+  const lambda = Math.round(Math.pow(10, +v));
+  slotState[i].lambda = lambda;
+  document.getElementById(`badge-${i}`).textContent = `λ = ${lambda.toLocaleString()}`;
+  // sync presets
+  document.querySelectorAll(`#presets-${i} .preset-btn`).forEach(b => {
+    b.classList.toggle('active', +b.dataset.lambda === lambda);
+  });
+}
+
+function setLambda(i, lambda, btn) {
+  slotState[i].lambda = lambda;
+  document.getElementById(`slider-${i}`).value = Math.log10(lambda).toFixed(3);
+  document.getElementById(`badge-${i}`).textContent = `λ = ${lambda.toLocaleString()}`;
+  document.querySelectorAll(`#presets-${i} .preset-btn`).forEach(b => b.classList.remove('active'));
+  btn.classList.add('active');
+}
+
+// ─── Frequency change → reset lambdas ────────────────────────────────────────
+document.getElementById('freq-select').addEventListener('change', function () {
+  const lambdas = this.options[this.selectedIndex].dataset.lambdas.split(',').map(Number);
+  lambdas.forEach((l, i) => {
+    setLambda(i, l, document.querySelector(`#presets-${i} [data-lambda="${l}"]`)
+      || document.querySelector(`#presets-${i} .preset-btn`)); // fallback
+    document.getElementById(`slider-${i}`).value = Math.log10(l).toFixed(3);
+    document.getElementById(`badge-${i}`).textContent = `λ = ${l.toLocaleString()}`;
+  });
+});
+
+// ─── View toggle ─────────────────────────────────────────────────────────────
+function setView(v) {
+  currentView = v;
+  document.getElementById('grid-section').style.display    = v === 'grid'    ? '' : 'none';
+  document.getElementById('overlay-section').style.display = v === 'overlay' ? '' : 'none';
+  document.getElementById('vtab-grid').classList.toggle('active',    v === 'grid');
+  document.getElementById('vtab-overlay').classList.toggle('active', v === 'overlay');
+}
+
+// ─── API call ─────────────────────────────────────────────────────────────────
+function getFreq() { return document.getElementById('freq-select').value; }
+
+function buildReq(i) {
+  return {
+    id: `panel-${SLOT_LETTERS[i]}`,
+    series: { start: { frequency: getFreq(), year: 2000, pos: 0 }, values: DEMO_VALUES },
+    lambda: slotState[i].lambda
+  };
+}
+
+async function runSingle(i) {
+  const slot = document.getElementById(`slot-${i}`);
+  slot.classList.add('loading');
+
+  const req = buildReq(i);
+  const resp = await fetch('/hello/hodrickPrescott', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(req)
+  });
+  if (!resp.ok) throw new Error(`Panel ${SLOT_LETTERS[i]}: HTTP ${resp.status}`);
+  const data = await resp.json();
+
+  const trend = data.trend?.values ?? [];
+  const noise = data.noise?.values ?? [];
+  const labels = generateLabels(data.trend.start, trend.length);
+
+  // update slot chart
+  const st = slotState[i];
+  st.result = { trend, noise };
+  st.chart.data.labels            = labels;
+  st.chart.data.datasets[1].data  = trend;
+  st.chart.data.datasets[2].data  = noise;
+  st.chart.update('active');
+
+  // mini stats
+  const nstd = Math.sqrt(noise.reduce((acc, v) => acc + v * v, 0) / noise.length).toFixed(2);
+  document.getElementById(`nmin-${i}`).textContent = Math.min(...noise).toFixed(2);
+  document.getElementById(`nmax-${i}`).textContent = Math.max(...noise).toFixed(2);
+  document.getElementById(`nstd-${i}`).textContent = nstd;
+
+  // update overlay dataset label
+  if (overlayChart) {
+    overlayChart.data.labels = labels;
+    overlayChart.data.datasets[i + 1].label = `λ = ${st.lambda.toLocaleString()}`;
+    overlayChart.data.datasets[i + 1].data  = trend;
+    const pill = document.getElementById(`leg-${i}`);
+    if (pill) pill.textContent = `λ = ${st.lambda.toLocaleString()}`;
+  }
+
+  slot.classList.remove('loading');
+  return { i, trend, noise, lambda: st.lambda };
+}
+
+async function runAll() {
+  const btn = document.getElementById('run-btn');
+  const err = document.getElementById('error-banner');
+  btn.disabled = true;
+  btn.textContent = 'Running…';
+  err.classList.remove('visible');
+
+  try {
+    const results = await Promise.all([0, 1, 2, 3].map(runSingle));
+
+    // update overlay chart in one go
+    if (overlayChart) overlayChart.update('active');
+
+    // rebuild comparison table
+    const tbody = document.getElementById('cmp-tbody');
+    tbody.innerHTML = results.map(({ i, trend, noise, lambda }) => {
+      const nmin = Math.min(...noise), nmax = Math.max(...noise);
+      const amp  = `${nmin.toFixed(2)} / ${nmax.toFixed(2)}`;
+      const nstd = Math.sqrt(noise.reduce((a, v) => a + v * v, 0) / noise.length).toFixed(2);
+      const tswing = (Math.max(...trend) - Math.min(...trend)).toFixed(2);
+      const tstart = trend[0]?.toFixed(2) ?? '—';
+      const tend   = trend[trend.length - 1]?.toFixed(2) ?? '—';
+      const color  = SLOT_COLORS[i];
+      return `<tr>
+        <td><span class="color-chip" style="--chip-color:${color}">Panel ${SLOT_LETTERS[i]}</span></td>
+        <td class="num">${lambda.toLocaleString()}</td>
+        <td class="num">${amp}</td>
+        <td class="num">${nstd}</td>
+        <td class="num">${tstart} → ${tend}</td>
+        <td class="num">${tswing}</td>
+      </tr>`;
+    }).join('');
+
+  } catch (e) {
+    err.textContent = `⚠ ${e.message}`;
+    err.classList.add('visible');
+    // remove loading states
+    [0,1,2,3].forEach(i => document.getElementById(`slot-${i}`).classList.remove('loading'));
+  } finally {
+    btn.disabled = false;
+    btn.innerHTML = `<svg width="16" height="16" fill="none" viewBox="0 0 16 16">
+      <path d="M4 2.5l9 5.5-9 5.5V2.5z" fill="currentColor"/></svg> Run All`;
+  }
+}
+
+// ─── Init ────────────────────────────────────────────────────────────────────
+buildSlots();
+buildOverlayChart();
+window.addEventListener('load', runAll);
+</script>
+</body>
+</html>
+
